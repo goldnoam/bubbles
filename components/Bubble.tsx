@@ -28,9 +28,13 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
       case BubbleType.GOLDEN:
         return 'border-yellow-200 bg-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.6)]';
       case BubbleType.STICKY:
-        return 'border-emerald-300 bg-emerald-700/50 shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-[1.1]';
+        return 'border-emerald-300 bg-emerald-700/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]';
       case BubbleType.MULTIPLIER:
-        return 'border-cyan-200 bg-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.6)] animate-bounce';
+        return 'border-cyan-200 bg-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.6)]';
+      case BubbleType.MAGNET:
+        return 'border-purple-300 bg-purple-600/40 shadow-[0_0_20px_rgba(168,85,247,0.6)]';
+      case BubbleType.FREEZE:
+        return 'border-cyan-100 bg-cyan-200/40 shadow-[0_0_15px_rgba(165,243,252,0.6)]';
       default:
         return `border-white/30 ${data.color}`;
     }
@@ -43,6 +47,8 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
       case BubbleType.GOLDEN: return <i className="fas fa-star text-yellow-50 opacity-100" style={{ fontSize: data.size * 0.55 }}></i>;
       case BubbleType.STICKY: return <i className="fas fa-flask text-emerald-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
       case BubbleType.MULTIPLIER: return <span className="text-white font-black drop-shadow-md" style={{ fontSize: data.size * 0.45 }}>x2</span>;
+      case BubbleType.MAGNET: return <i className="fas fa-magnet text-purple-100 opacity-95" style={{ fontSize: data.size * 0.45 }}></i>;
+      case BubbleType.FREEZE: return <i className="fas fa-snowflake text-cyan-50 opacity-100" style={{ fontSize: data.size * 0.45 }}></i>;
       default: return null;
     }
   };
@@ -55,30 +61,23 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
         top: 0,
         width: `${data.size}px`,
         height: `${data.size}px`,
-        transform: `translate3d(${data.x}px, ${data.y}px, 0)`,
-        transition: 'transform 0.016s linear', 
+        transform: `translate3d(${data.x}px, ${data.y}px, 0) rotate(${data.rotation}deg)`,
       }}
     >
+      {/* Visual Radius Indicators */}
+      {!isPopping && data.type === BubbleType.MAGNET && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border border-purple-400/10 bg-purple-500/5 blur-xl pointer-events-none animate-pulse"></div>
+      )}
+      {!isPopping && data.type === BubbleType.STICKY && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] rounded-full border border-emerald-400/10 bg-emerald-500/5 blur-md pointer-events-none"></div>
+      )}
+
       {/* Combo Aura */}
       {!isPopping && combo > 3 && (
         <div 
           className="absolute inset-[-10px] rounded-full animate-pulse border-4 border-emerald-400/20 blur-sm"
           style={{ opacity: Math.min(combo * 0.1, 0.8) }}
         ></div>
-      )}
-
-      {/* Sticky Range Indicator */}
-      {!isPopping && data.type === BubbleType.STICKY && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full border border-emerald-400/10 bg-emerald-500/5 blur-xl pointer-events-none"></div>
-      )}
-
-      {/* Trail particles */}
-      {!isPopping && !isPaused && (
-        <>
-          <div className="absolute left-1/4 bottom-0 w-2 h-2 bg-white/40 rounded-full trail-dot" style={{ animationDelay: '0s' }}></div>
-          <div className="absolute left-1/2 bottom-[-10px] w-1.5 h-1.5 bg-white/30 rounded-full trail-dot" style={{ animationDelay: '0.2s' }}></div>
-          <div className="absolute left-3/4 bottom-[-5px] w-2.5 h-2.5 bg-white/20 rounded-full trail-dot" style={{ animationDelay: '0.4s' }}></div>
-        </>
       )}
 
       {/* Explosion Particles for Bomb */}
@@ -104,7 +103,6 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
         onTouchStart={handlePop}
         className={`w-full h-full rounded-full border-2 shadow-inner flex items-center justify-center bubble-inner transition-transform duration-200 hover:scale-110 ${getTypeStyles()} ${isPopping ? 'popping' : ''}`}
         style={{
-          animationDuration: `${data.speed * 0.4}s`,
           animationPlayState: isPaused ? 'paused' : 'running',
         }}
       >
@@ -113,9 +111,6 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
             {getIcon()}
             <div className="absolute top-[15%] right-[20%] w-1/4 h-1/4 bg-white/40 rounded-full blur-[1px] sparkle-effect"></div>
             <div className="absolute bottom-[20%] left-[25%] w-1/5 h-1/5 bg-white/10 rounded-full blur-[1px]"></div>
-            {data.type !== BubbleType.NORMAL && (
-              <div className="absolute inset-0 rounded-full bg-white/5 blur-md"></div>
-            )}
           </>
         )}
       </div>

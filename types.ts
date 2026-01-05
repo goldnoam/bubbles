@@ -15,7 +15,9 @@ export enum BubbleType {
   BOMB = 'BOMB',
   GOLDEN = 'GOLDEN',
   STICKY = 'STICKY',
-  MULTIPLIER = 'MULTIPLIER'
+  MULTIPLIER = 'MULTIPLIER',
+  MAGNET = 'MAGNET',
+  FREEZE = 'FREEZE'
 }
 
 export interface BubbleData {
@@ -24,6 +26,8 @@ export interface BubbleData {
   y: number;
   vx: number;
   vy: number;
+  rotation: number;
+  angularVelocity: number;
   size: number;
   speed: number;
   color: string;

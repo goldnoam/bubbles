@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [combo, setCombo] = useState(0);
   const [isMuted, setIsMuted] = useState(audioService.getMuteStatus());
   const [isSlowed, setIsSlowed] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
   const [isMultiplierActive, setIsMultiplierActive] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [isDistorted, setIsDistorted] = useState(false);
@@ -38,6 +39,7 @@ const App: React.FC = () => {
   const currentLevel = LEVELS[levelIndex];
   const spawnTimerRef = useRef<number | null>(null);
   const slowTimeoutRef = useRef<number | null>(null);
+  const freezeTimeoutRef = useRef<number | null>(null);
   const multiplierTimeoutRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const bubblesRef = useRef<BubbleData[]>([]);
@@ -71,11 +73,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     document.documentElement.className = `${isDark ? 'dark' : ''} font-${fontSize}`;
-    if (isDark) {
-      document.body.classList.add('dark');
-    } else {
-      document.body.classList.remove('dark');
-    }
   }, [isDark, fontSize]);
 
   useEffect(() => {
@@ -89,101 +86,121 @@ const App: React.FC = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const nextBubbles = [...bubblesRef.current];
-      const elasticity = 0.7; // How much energy is kept in bounce
-      const friction = 0.98; // Tangential friction
+      
+      const elasticity = 0.8; // Bounciness
+      const wallElasticity = 0.7;
+      const friction = 0.995; // Velocity retention
+      const buoyancy = (isSlowed ? -0.1 : (isFrozen ? 0 : -0.25)) * gameSpeed;
 
       for (let i = 0; i < nextBubbles.length; i++) {
         const b = nextBubbles[i];
         
-        // Buoyancy / Upward force
-        const buoyancy = (isSlowed ? -0.1 : -0.3) * gameSpeed;
-        b.vy += buoyancy;
+        if (!isFrozen) {
+          // Apply Buoyancy
+          b.vy += buoyancy;
 
-        // Apply Sticky Effect: Bubbles near a STICKY bubble get dragged/slowed
-        for (let j = 0; j < nextBubbles.length; j++) {
+          // Effect of STICKY bubbles: slow down others nearby
+          for (let j = 0; j < nextBubbles.length; j++) {
             if (i === j) continue;
             const b2 = nextBubbles[j];
             if (b2.type === BubbleType.STICKY) {
-                const dx = b.x - b2.x;
-                const dy = b.y - b2.y;
-                const distSq = dx*dx + dy*dy;
-                const range = 150;
-                if (distSq < range * range) {
-                    const drag = 0.05 * gameSpeed;
-                    b.vx *= (1 - drag);
-                    b.vy *= (1 - drag);
-                }
+              const dx = b2.x - b.x;
+              const dy = b2.y - b.y;
+              const distSq = dx * dx + dy * dy;
+              const stickyRange = 200;
+              if (distSq < stickyRange * stickyRange) {
+                b.vx *= 0.95;
+                b.vy *= 0.95;
+              }
             }
+            if (b2.type === BubbleType.MAGNET) {
+              const dx = b2.x - b.x;
+              const dy = b2.y - b.y;
+              const distSq = dx * dx + dy * dy;
+              const magRange = 300;
+              if (distSq < magRange * magRange) {
+                const dist = Math.sqrt(distSq);
+                const force = (magRange - dist) / 5000;
+                b.vx += (dx / dist) * force;
+                b.vy += (dy / dist) * force;
+              }
+            }
+          }
+
+          // Move
+          b.x += b.vx * gameSpeed;
+          b.y += b.vy * gameSpeed;
+          b.rotation += b.angularVelocity * gameSpeed;
+
+          // Apply Friction
+          b.vx *= friction;
+          b.vy *= friction;
+          b.angularVelocity *= 0.99;
         }
 
-        // Apply velocities
-        b.x += b.vx * gameSpeed;
-        b.y += b.vy * gameSpeed;
-
-        // Friction / Drag (Air/Liquid resistance)
-        b.vx *= (1 - (0.005 * gameSpeed));
-        b.vy *= (1 - (0.005 * gameSpeed));
-
         // Wall collisions
-        if (b.x < 0) { b.x = 0; b.vx *= -elasticity; }
-        if (b.x > width - b.size) { b.x = width - b.size; b.vx *= -elasticity; }
+        if (b.x < 0) { 
+          b.x = 0; b.vx *= -wallElasticity; 
+          b.angularVelocity += b.vy * 0.05; 
+        }
+        if (b.x > width - b.size) { 
+          b.x = width - b.size; b.vx *= -wallElasticity; 
+          b.angularVelocity -= b.vy * 0.05;
+        }
         
-        // Remove if off top
+        // Remove bubbles that float away
         if (b.y < -b.size * 2) {
           nextBubbles.splice(i, 1);
           i--;
           continue;
         }
 
-        // Bubble-Bubble Collision (Physics Improved)
+        // Realistic Bubble-Bubble Collision (Impulse resolution)
         for (let j = i + 1; j < nextBubbles.length; j++) {
           const b2 = nextBubbles[j];
-          const dx = (b.x + b.size / 2) - (b2.x + b2.size / 2);
-          const dy = (b.y + b.size / 2) - (b2.y + b2.size / 2);
+          const b1c = { x: b.x + b.size/2, y: b.y + b.size/2 };
+          const b2c = { x: b2.x + b2.size/2, y: b2.y + b2.size/2 };
+          const dx = b1c.x - b2c.x;
+          const dy = b1c.y - b2c.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           const minDistance = (b.size + b2.size) / 2;
 
           if (distance < minDistance) {
-            // Collision normal
+            // Normal vector
             const nx = dx / distance;
             const ny = dy / distance;
-
+            
             // Relative velocity
             const rvx = b.vx - b2.vx;
             const rvy = b.vy - b2.vy;
-
-            // Velocity along normal
             const velAlongNormal = rvx * nx + rvy * ny;
 
-            // Do not resolve if velocities are separating
             if (velAlongNormal > 0) continue;
 
-            // Restitution
+            // Impulse magnitude
             const j_impulse = -(1 + elasticity) * velAlongNormal;
             const invMass1 = 1 / b.mass;
             const invMass2 = 1 / b2.mass;
             const impulse = j_impulse / (invMass1 + invMass2);
 
             // Apply impulse
-            const impulseX = impulse * nx;
-            const impulseY = impulse * ny;
+            b.vx += invMass1 * impulse * nx;
+            b.vy += invMass1 * impulse * ny;
+            b2.vx -= invMass2 * impulse * nx;
+            b2.vy -= invMass2 * impulse * ny;
 
-            b.vx += invMass1 * impulseX;
-            b.vy += invMass1 * impulseY;
-            b2.vx -= invMass2 * impulseX;
-            b2.vy -= invMass2 * impulseY;
+            // Angular kick
+            b.angularVelocity += (b.vx - b2.vx) * 0.02;
+            b2.angularVelocity -= (b.vx - b2.vx) * 0.02;
 
             // Positional correction to prevent sticking
-            const percent = 0.2; // penetration percentage to correct
-            const slop = 0.01; // penetration allowance
-            const penetration = minDistance - distance;
-            const correction = Math.max(penetration - slop, 0) / (invMass1 + invMass2) * percent;
-            const cx = correction * nx;
-            const cy = correction * ny;
-            b.x += invMass1 * cx;
-            b.y += invMass1 * cy;
-            b2.x -= invMass2 * cx;
-            b2.y -= invMass2 * cy;
+            const percent = 0.5;
+            const slop = 0.01;
+            const correction = Math.max(minDistance - distance - slop, 0) / (invMass1 + invMass2) * percent;
+            b.x += invMass1 * nx * correction;
+            b.y += invMass1 * ny * correction;
+            b2.x -= invMass2 * nx * correction;
+            b2.y -= invMass2 * ny * correction;
           }
         }
       }
@@ -193,8 +210,7 @@ const App: React.FC = () => {
       const intensity = audioService.getBeatIntensity();
       if (containerRef.current) {
         containerRef.current.style.setProperty('--beat-intensity', intensity.toString());
-        containerRef.current.style.setProperty('--beat-scale', (1 + intensity * 0.05).toString());
-        containerRef.current.style.setProperty('--beat-brightness', (1 + intensity * 0.3).toString());
+        containerRef.current.style.setProperty('--beat-scale', (1 + intensity * 0.1).toString());
       }
 
       animationFrameId = requestAnimationFrame(updatePhysics);
@@ -202,7 +218,7 @@ const App: React.FC = () => {
     
     animationFrameId = requestAnimationFrame(updatePhysics);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [state, isSlowed, gameSpeed]);
+  }, [state, isSlowed, isFrozen, gameSpeed]);
 
   const triggerBombEffect = useCallback(() => {
     setIsShaking(true);
@@ -222,36 +238,41 @@ const App: React.FC = () => {
 
   const spawnBubble = useCallback(() => {
     const id = Math.random().toString(36).substring(2, 9);
-    const size = 40 + Math.random() * 60; 
+    const size = 30 + Math.random() * 70; 
     const x = Math.random() * (window.innerWidth - size);
     const y = window.innerHeight + size;
     
     const rand = Math.random();
     let type = BubbleType.NORMAL;
     if (rand < 0.04) type = BubbleType.BOMB;
-    else if (rand < 0.10) type = BubbleType.GOLDEN;
-    else if (rand < 0.14) type = BubbleType.SLOW_MO;
-    else if (rand < 0.18) type = BubbleType.STICKY;
-    else if (rand < 0.22) type = BubbleType.MULTIPLIER;
+    else if (rand < 0.12) type = BubbleType.GOLDEN;
+    else if (rand < 0.16) type = BubbleType.SLOW_MO;
+    else if (rand < 0.20) type = BubbleType.STICKY;
+    else if (rand < 0.24) type = BubbleType.MULTIPLIER;
+    else if (rand < 0.27) type = BubbleType.MAGNET;
+    else if (rand < 0.30) type = BubbleType.FREEZE;
 
     const baseSpeed = currentLevel.speedRange[0] + Math.random() * (currentLevel.speedRange[1] - currentLevel.speedRange[0]);
-    const speed = isSlowed ? baseSpeed * 0.5 : baseSpeed;
+    const speed = isSlowed ? baseSpeed * 0.4 : (isFrozen ? 0 : baseSpeed);
     
     const newBubble: BubbleData = {
       id, x, y, size, speed, color: currentLevel.bubbleColor, type,
       vx: (Math.random() - 0.5) * 4,
       vy: -speed,
-      mass: size // Mass proportional to size
+      rotation: Math.random() * 360,
+      angularVelocity: (Math.random() - 0.5) * 8,
+      mass: size // Mass based on size for realistic collisions
     };
     setBubbles(prev => [...prev, newBubble]);
-  }, [currentLevel, isSlowed]);
+  }, [currentLevel, isSlowed, isFrozen]);
 
   const handleStart = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleResume = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleReset = () => {
-    setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsMultiplierActive(false); setIsShaking(false); setIsDistorted(false); setCombo(0);
+    setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsFrozen(false); setIsMultiplierActive(false); setIsShaking(false); setIsDistorted(false); setCombo(0);
     setState(GameState.START); audioService.pauseMusic();
     if (slowTimeoutRef.current) clearTimeout(slowTimeoutRef.current);
+    if (freezeTimeoutRef.current) clearTimeout(freezeTimeoutRef.current);
     if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
   };
 
@@ -275,12 +296,12 @@ const App: React.FC = () => {
     let points = 0;
 
     switch (bubble.type) {
-      case BubbleType.GOLDEN: points = 10; break;
+      case BubbleType.GOLDEN: points = 15; break;
       case BubbleType.BOMB:
         triggerBombEffect();
         setBubbles(prev => { 
           const count = prev.length;
-          setScore(s => s + Math.floor(count * 0.7 * multiplier) + 15); 
+          setScore(s => s + Math.floor(count * 0.8 * multiplier) + 20); 
           return []; 
         });
         return;
@@ -288,25 +309,31 @@ const App: React.FC = () => {
         setIsSlowed(true);
         if (slowTimeoutRef.current) clearTimeout(slowTimeoutRef.current);
         slowTimeoutRef.current = window.setTimeout(() => setIsSlowed(false), 5000);
-        points = 2;
+        points = 5;
+        break;
+      case BubbleType.FREEZE:
+        setIsFrozen(true);
+        if (freezeTimeoutRef.current) clearTimeout(freezeTimeoutRef.current);
+        freezeTimeoutRef.current = window.setTimeout(() => setIsFrozen(false), 3000);
+        points = 5;
         break;
       case BubbleType.STICKY:
-        points = 5;
+        points = 10;
         break;
       case BubbleType.MULTIPLIER:
         setIsMultiplierActive(true);
         if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
-        multiplierTimeoutRef.current = window.setTimeout(() => setIsMultiplierActive(false), 8000);
-        points = 3;
+        multiplierTimeoutRef.current = window.setTimeout(() => setIsMultiplierActive(false), 10000);
+        points = 5;
+        break;
+      case BubbleType.MAGNET:
+        points = 8;
         break;
       default: points = 1; break;
     }
 
     setScore(prev => prev + Math.floor(points * multiplier));
-    
-    setTimeout(() => {
-      setBubbles(prev => prev.filter(b => b.id !== bubble.id));
-    }, 300);
+    setBubbles(prev => prev.filter(b => b.id !== bubble.id));
   }, [state, triggerBombEffect, combo, isMultiplierActive]);
 
   const toggleMute = () => {
@@ -328,7 +355,7 @@ const App: React.FC = () => {
     if (score >= currentLevel.targetScore) {
       if (levelIndex < LEVELS.length - 1) {
         setState(GameState.LEVEL_UP);
-        triggerBombEffect(); setIsSlowed(false); setIsMultiplierActive(false); setBubbles([]); setCombo(0);
+        triggerBombEffect(); setIsSlowed(false); setIsFrozen(false); setIsMultiplierActive(false); setBubbles([]); setCombo(0);
         setTimeout(() => { setLevelIndex(prev => prev + 1); setState(GameState.PLAYING); }, 3000); 
       }
     }
@@ -338,14 +365,14 @@ const App: React.FC = () => {
     <div 
       ref={containerRef} 
       className={`relative w-full h-screen overflow-hidden transition-all duration-1000 ${currentLevel.bottleColor} ${isShaking ? 'screen-shake' : ''} ${isDistorted ? 'is-distorted' : ''}`} 
-      style={{ '--beat-intensity': '0', '--beat-scale': '1', '--beat-brightness': '1' } as any}
     >
-      <div className="absolute inset-0 pointer-events-none opacity-40 mix-blend-overlay" style={{ background: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 70%)`, transform: `scale(var(--beat-scale))`, filter: `brightness(var(--beat-brightness))` }}></div>
-      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none opacity-20" style={{ background: `linear-gradient(to top, white, transparent)`, transform: `scaleY(calc(0.5 + var(--beat-intensity) * 1.5))`, transformOrigin: 'bottom' }}></div>
-      <div className={`absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,0.4),transparent)] ${isSlowed ? 'animate-pulse' : ''}`}></div>
-      {isSlowed && <div className="absolute inset-0 pointer-events-none bg-blue-500/10 z-10 transition-opacity duration-1000"></div>}
-      {isMultiplierActive && <div className="absolute inset-0 pointer-events-none bg-yellow-500/5 z-10 transition-opacity duration-500 border-[20px] border-yellow-400/20 blur-xl animate-pulse"></div>}
-      <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] scale-[2] animate-pulse"></div>
+      <div className="absolute inset-0 pointer-events-none opacity-40 mix-blend-overlay" style={{ background: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 70%)`, transform: `scale(var(--beat-scale, 1))` }}></div>
+      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none opacity-20" style={{ background: `linear-gradient(to top, white, transparent)`, transform: `scaleY(calc(0.5 + var(--beat-intensity, 0) * 1.5))`, transformOrigin: 'bottom' }}></div>
+      <div className={`absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,0.4),transparent)] ${isSlowed || isFrozen ? 'animate-pulse' : ''}`}></div>
+      
+      {isSlowed && <div className="absolute inset-0 pointer-events-none bg-blue-500/10 z-10 animate-pulse"></div>}
+      {isFrozen && <div className="absolute inset-0 pointer-events-none bg-cyan-200/20 z-10 backdrop-blur-[1px] border-[30px] border-white/20"></div>}
+      {isMultiplierActive && <div className="absolute inset-0 pointer-events-none bg-yellow-500/10 z-10 border-[15px] border-yellow-400/30 blur-xl animate-pulse"></div>}
 
       <div className="absolute inset-0 overflow-hidden">
         {bubbles.map(bubble => (
