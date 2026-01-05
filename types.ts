@@ -13,7 +13,9 @@ export enum BubbleType {
   NORMAL = 'NORMAL',
   SLOW_MO = 'SLOW_MO',
   BOMB = 'BOMB',
-  GOLDEN = 'GOLDEN'
+  GOLDEN = 'GOLDEN',
+  STICKY = 'STICKY',
+  MULTIPLIER = 'MULTIPLIER'
 }
 
 export interface BubbleData {

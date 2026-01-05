@@ -8,7 +8,7 @@ import GameUI from './components/GameUI';
 
 const HIGH_SCORE_KEY = 'fizzy_pop_highscore';
 const THEME_KEY = 'fizzy_pop_theme';
-const COMBO_WINDOW = 1000; // 1 second to continue combo
+const COMBO_WINDOW = 1000; 
 
 const App: React.FC = () => {
   const [state, setState] = useState<GameState>(GameState.START);
@@ -31,12 +31,14 @@ const App: React.FC = () => {
   const [combo, setCombo] = useState(0);
   const [isMuted, setIsMuted] = useState(audioService.getMuteStatus());
   const [isSlowed, setIsSlowed] = useState(false);
+  const [isMultiplierActive, setIsMultiplierActive] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [isDistorted, setIsDistorted] = useState(false);
   
   const currentLevel = LEVELS[levelIndex];
   const spawnTimerRef = useRef<number | null>(null);
   const slowTimeoutRef = useRef<number | null>(null);
+  const multiplierTimeoutRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const bubblesRef = useRef<BubbleData[]>([]);
   const lastPopTimeRef = useRef<number>(0);
@@ -46,12 +48,10 @@ const App: React.FC = () => {
     localStorage.setItem(THEME_KEY, isDark.toString());
   }, [isDark]);
 
-  // Sync refs with state for the physics loop
   useEffect(() => {
     bubblesRef.current = bubbles;
   }, [bubbles]);
 
-  // Handle Combo Timeout
   useEffect(() => {
     if (combo > 0) {
       if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
@@ -64,7 +64,6 @@ const App: React.FC = () => {
     };
   }, [combo]);
 
-  // Language & Theme logic
   useEffect(() => {
     document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
@@ -79,7 +78,6 @@ const App: React.FC = () => {
     }
   }, [isDark, fontSize]);
 
-  // Physics Loop
   useEffect(() => {
     let animationFrameId: number;
     const updatePhysics = () => {
@@ -91,6 +89,8 @@ const App: React.FC = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const nextBubbles = [...bubblesRef.current];
+      const elasticity = 0.7; // How much energy is kept in bounce
+      const friction = 0.98; // Tangential friction
 
       for (let i = 0; i < nextBubbles.length; i++) {
         const b = nextBubbles[i];
@@ -99,26 +99,43 @@ const App: React.FC = () => {
         const buoyancy = (isSlowed ? -0.1 : -0.3) * gameSpeed;
         b.vy += buoyancy;
 
+        // Apply Sticky Effect: Bubbles near a STICKY bubble get dragged/slowed
+        for (let j = 0; j < nextBubbles.length; j++) {
+            if (i === j) continue;
+            const b2 = nextBubbles[j];
+            if (b2.type === BubbleType.STICKY) {
+                const dx = b.x - b2.x;
+                const dy = b.y - b2.y;
+                const distSq = dx*dx + dy*dy;
+                const range = 150;
+                if (distSq < range * range) {
+                    const drag = 0.05 * gameSpeed;
+                    b.vx *= (1 - drag);
+                    b.vy *= (1 - drag);
+                }
+            }
+        }
+
         // Apply velocities
         b.x += b.vx * gameSpeed;
         b.y += b.vy * gameSpeed;
 
-        // Friction / Drag
-        b.vx *= (1 - (0.01 * gameSpeed));
-        b.vy *= (1 - (0.01 * gameSpeed));
+        // Friction / Drag (Air/Liquid resistance)
+        b.vx *= (1 - (0.005 * gameSpeed));
+        b.vy *= (1 - (0.005 * gameSpeed));
 
         // Wall collisions
-        if (b.x < 0) { b.x = 0; b.vx *= -0.8; }
-        if (b.x > width - b.size) { b.x = width - b.size; b.vx *= -0.8; }
+        if (b.x < 0) { b.x = 0; b.vx *= -elasticity; }
+        if (b.x > width - b.size) { b.x = width - b.size; b.vx *= -elasticity; }
         
-        // Remove if off top or bottom
+        // Remove if off top
         if (b.y < -b.size * 2) {
           nextBubbles.splice(i, 1);
           i--;
           continue;
         }
 
-        // Bubble-Bubble Collision
+        // Bubble-Bubble Collision (Physics Improved)
         for (let j = i + 1; j < nextBubbles.length; j++) {
           const b2 = nextBubbles[j];
           const dx = (b.x + b.size / 2) - (b2.x + b2.size / 2);
@@ -127,16 +144,46 @@ const App: React.FC = () => {
           const minDistance = (b.size + b2.size) / 2;
 
           if (distance < minDistance) {
-            const angle = Math.atan2(dy, dx);
-            const targetX = b2.x + b2.size / 2 + Math.cos(angle) * minDistance;
-            const targetY = b2.y + b2.size / 2 + Math.sin(angle) * minDistance;
-            const ax = (targetX - (b.x + b.size / 2)) * 0.1 * gameSpeed;
-            const ay = (targetY - (b.y + b.size / 2)) * 0.1 * gameSpeed;
+            // Collision normal
+            const nx = dx / distance;
+            const ny = dy / distance;
 
-            b.vx += ax;
-            b.vy += ay;
-            b2.vx -= ax;
-            b2.vy -= ay;
+            // Relative velocity
+            const rvx = b.vx - b2.vx;
+            const rvy = b.vy - b2.vy;
+
+            // Velocity along normal
+            const velAlongNormal = rvx * nx + rvy * ny;
+
+            // Do not resolve if velocities are separating
+            if (velAlongNormal > 0) continue;
+
+            // Restitution
+            const j_impulse = -(1 + elasticity) * velAlongNormal;
+            const invMass1 = 1 / b.mass;
+            const invMass2 = 1 / b2.mass;
+            const impulse = j_impulse / (invMass1 + invMass2);
+
+            // Apply impulse
+            const impulseX = impulse * nx;
+            const impulseY = impulse * ny;
+
+            b.vx += invMass1 * impulseX;
+            b.vy += invMass1 * impulseY;
+            b2.vx -= invMass2 * impulseX;
+            b2.vy -= invMass2 * impulseY;
+
+            // Positional correction to prevent sticking
+            const percent = 0.2; // penetration percentage to correct
+            const slop = 0.01; // penetration allowance
+            const penetration = minDistance - distance;
+            const correction = Math.max(penetration - slop, 0) / (invMass1 + invMass2) * percent;
+            const cx = correction * nx;
+            const cy = correction * ny;
+            b.x += invMass1 * cx;
+            b.y += invMass1 * cy;
+            b2.x -= invMass2 * cx;
+            b2.y -= invMass2 * cy;
           }
         }
       }
@@ -181,9 +228,11 @@ const App: React.FC = () => {
     
     const rand = Math.random();
     let type = BubbleType.NORMAL;
-    if (rand < 0.05) type = BubbleType.BOMB;
-    else if (rand < 0.12) type = BubbleType.GOLDEN;
-    else if (rand < 0.18) type = BubbleType.SLOW_MO;
+    if (rand < 0.04) type = BubbleType.BOMB;
+    else if (rand < 0.10) type = BubbleType.GOLDEN;
+    else if (rand < 0.14) type = BubbleType.SLOW_MO;
+    else if (rand < 0.18) type = BubbleType.STICKY;
+    else if (rand < 0.22) type = BubbleType.MULTIPLIER;
 
     const baseSpeed = currentLevel.speedRange[0] + Math.random() * (currentLevel.speedRange[1] - currentLevel.speedRange[0]);
     const speed = isSlowed ? baseSpeed * 0.5 : baseSpeed;
@@ -192,7 +241,7 @@ const App: React.FC = () => {
       id, x, y, size, speed, color: currentLevel.bubbleColor, type,
       vx: (Math.random() - 0.5) * 4,
       vy: -speed,
-      mass: size
+      mass: size // Mass proportional to size
     };
     setBubbles(prev => [...prev, newBubble]);
   }, [currentLevel, isSlowed]);
@@ -200,9 +249,10 @@ const App: React.FC = () => {
   const handleStart = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleResume = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleReset = () => {
-    setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsShaking(false); setIsDistorted(false); setCombo(0);
+    setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsMultiplierActive(false); setIsShaking(false); setIsDistorted(false); setCombo(0);
     setState(GameState.START); audioService.pauseMusic();
     if (slowTimeoutRef.current) clearTimeout(slowTimeoutRef.current);
+    if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
   };
 
   const handleTogglePause = () => {
@@ -219,7 +269,9 @@ const App: React.FC = () => {
     setCombo(currentCombo);
     lastPopTimeRef.current = now;
 
-    const multiplier = Math.min(1 + (currentCombo * 0.2), 5);
+    let multiplier = Math.min(1 + (currentCombo * 0.2), 5);
+    if (isMultiplierActive) multiplier *= 2;
+    
     let points = 0;
 
     switch (bubble.type) {
@@ -238,6 +290,15 @@ const App: React.FC = () => {
         slowTimeoutRef.current = window.setTimeout(() => setIsSlowed(false), 5000);
         points = 2;
         break;
+      case BubbleType.STICKY:
+        points = 5;
+        break;
+      case BubbleType.MULTIPLIER:
+        setIsMultiplierActive(true);
+        if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
+        multiplierTimeoutRef.current = window.setTimeout(() => setIsMultiplierActive(false), 8000);
+        points = 3;
+        break;
       default: points = 1; break;
     }
 
@@ -246,7 +307,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       setBubbles(prev => prev.filter(b => b.id !== bubble.id));
     }, 300);
-  }, [state, triggerBombEffect, combo]);
+  }, [state, triggerBombEffect, combo, isMultiplierActive]);
 
   const toggleMute = () => {
     const newMuted = audioService.toggleMute();
@@ -267,7 +328,7 @@ const App: React.FC = () => {
     if (score >= currentLevel.targetScore) {
       if (levelIndex < LEVELS.length - 1) {
         setState(GameState.LEVEL_UP);
-        triggerBombEffect(); setIsSlowed(false); setBubbles([]); setCombo(0);
+        triggerBombEffect(); setIsSlowed(false); setIsMultiplierActive(false); setBubbles([]); setCombo(0);
         setTimeout(() => { setLevelIndex(prev => prev + 1); setState(GameState.PLAYING); }, 3000); 
       }
     }
@@ -283,6 +344,7 @@ const App: React.FC = () => {
       <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none opacity-20" style={{ background: `linear-gradient(to top, white, transparent)`, transform: `scaleY(calc(0.5 + var(--beat-intensity) * 1.5))`, transformOrigin: 'bottom' }}></div>
       <div className={`absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,0.4),transparent)] ${isSlowed ? 'animate-pulse' : ''}`}></div>
       {isSlowed && <div className="absolute inset-0 pointer-events-none bg-blue-500/10 z-10 transition-opacity duration-1000"></div>}
+      {isMultiplierActive && <div className="absolute inset-0 pointer-events-none bg-yellow-500/5 z-10 transition-opacity duration-500 border-[20px] border-yellow-400/20 blur-xl animate-pulse"></div>}
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] scale-[2] animate-pulse"></div>
 
       <div className="absolute inset-0 overflow-hidden">

@@ -27,6 +27,10 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
         return 'border-red-400 bg-red-600/40 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse';
       case BubbleType.GOLDEN:
         return 'border-yellow-200 bg-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.6)]';
+      case BubbleType.STICKY:
+        return 'border-emerald-300 bg-emerald-700/50 shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-[1.1]';
+      case BubbleType.MULTIPLIER:
+        return 'border-cyan-200 bg-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.6)] animate-bounce';
       default:
         return `border-white/30 ${data.color}`;
     }
@@ -37,6 +41,8 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
       case BubbleType.SLOW_MO: return <i className="fas fa-clock text-blue-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
       case BubbleType.BOMB: return <i className="fas fa-bomb text-red-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
       case BubbleType.GOLDEN: return <i className="fas fa-star text-yellow-50 opacity-100" style={{ fontSize: data.size * 0.55 }}></i>;
+      case BubbleType.STICKY: return <i className="fas fa-flask text-emerald-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
+      case BubbleType.MULTIPLIER: return <span className="text-white font-black drop-shadow-md" style={{ fontSize: data.size * 0.45 }}>x2</span>;
       default: return null;
     }
   };
@@ -50,7 +56,7 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
         width: `${data.size}px`,
         height: `${data.size}px`,
         transform: `translate3d(${data.x}px, ${data.y}px, 0)`,
-        transition: 'transform 0.016s linear', // smooth interpolation
+        transition: 'transform 0.016s linear', 
       }}
     >
       {/* Combo Aura */}
@@ -59,6 +65,11 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
           className="absolute inset-[-10px] rounded-full animate-pulse border-4 border-emerald-400/20 blur-sm"
           style={{ opacity: Math.min(combo * 0.1, 0.8) }}
         ></div>
+      )}
+
+      {/* Sticky Range Indicator */}
+      {!isPopping && data.type === BubbleType.STICKY && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full border border-emerald-400/10 bg-emerald-500/5 blur-xl pointer-events-none"></div>
       )}
 
       {/* Trail particles */}
