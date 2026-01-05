@@ -3,6 +3,7 @@
   "name": "fizzy-pop-master",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@google/genai": "^1.0.0",
     "react": "^19.2.3",
@@ -10,8 +11,16 @@
     "lucide-react": "^0.454.0"
   },
   "devDependencies": {
+    "vite": "^5.4.0",
+    "@vitejs/plugin-react": "^4.3.1",
     "tailwindcss": "^3.4.1",
     "autoprefixer": "^10.4.17",
-    "postcss": "^8.4.35"
+    "postcss": "^8.4.35",
+    "typescript": "^5.5.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   }
 }
