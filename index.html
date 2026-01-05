@@ -6,86 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fizzy Pop Master</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%2310b981%22 opacity=%220.8%22/><circle cx=%2270%22 cy=%2230%22 r=%2210%22 fill=%22white%22 opacity=%220.4%22/></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --font-size-base: 16px;
-        }
-        html { font-size: var(--font-size-base); }
-        .font-small { --font-size-base: 14px; }
-        .font-medium { --font-size-base: 16px; }
-        .font-large { --font-size-base: 20px; }
-
-        @keyframes bubble-float {
-            0% { transform: translateY(110vh) scale(0.3); opacity: 0; }
-            3% { transform: translateY(102vh) scale(1.2); opacity: 1; }
-            6% { transform: translateY(98vh) scale(1); opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-20vh) scale(1.1); opacity: 0; }
-        }
-        @keyframes bubble-wobble {
-            0%, 100% { transform: translateX(0) rotate(0deg); }
-            25% { transform: translateX(12px) rotate(4deg); }
-            75% { transform: translateX(-12px) rotate(-4deg); }
-        }
-        @keyframes bubble-pop {
-            0% { transform: scale(1); opacity: 1; filter: brightness(1); }
-            50% { transform: scale(1.6); opacity: 0.6; filter: brightness(1.5); border-width: 4px; }
-            100% { transform: scale(2.2); opacity: 0; filter: brightness(2); }
-        }
-        @keyframes bomb-explosion {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(4); opacity: 0; border-width: 10px; }
-        }
-        @keyframes particle-out {
-            0% { transform: translate(0,0); opacity: 1; }
-            100% { transform: translate(var(--tw-translate-x), var(--tw-translate-y)); opacity: 0; }
-        }
-        @keyframes sparkle {
-            0%, 100% { opacity: 0.4; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-        @keyframes trail-fizz {
-            0% { transform: translateY(0) scale(1); opacity: 0.8; }
-            100% { transform: translateY(40px) scale(0.2); opacity: 0; }
-        }
-        @keyframes screen-shake {
-            0%, 100% { transform: translate(0, 0); }
-            10%, 30%, 50%, 70%, 90% { transform: translate(-4px, 0); }
-            20%, 40%, 60%, 80% { transform: translate(4px, 0); }
-        }
-
-        .bubble-container { animation: bubble-float linear forwards; }
-        .bubble-inner { animation: bubble-wobble ease-in-out infinite; }
-        .popping { animation: bubble-pop 0.25s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards !important; }
-        .bomb-explode { animation: bomb-explosion 0.5s ease-out forwards !important; }
-        .sparkle-effect { animation: sparkle 2s infinite ease-in-out; }
-        .trail-dot { animation: trail-fizz 0.8s ease-out infinite; }
-        .screen-shake { animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-        
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #000;
-            user-select: none;
-            font-family: system-ui, -apple-system, sans-serif;
-            touch-action: none;
-        }
-        
-        /* Language alignment */
-        [dir="ltr"] .text-right-custom { text-align: left; }
-        [dir="rtl"] .text-right-custom { text-align: right; }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
+    <link rel="stylesheet" href="index.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "react": "https://esm.sh/react@^19.2.3",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+      }
+    }
+    </script>
 </head>
 <body class="transition-colors duration-500">
     <div id="root"></div>

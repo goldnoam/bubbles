@@ -7,6 +7,7 @@ import Bubble from './components/Bubble';
 import GameUI from './components/GameUI';
 
 const HIGH_SCORE_KEY = 'fizzy_pop_highscore';
+const THEME_KEY = 'fizzy_pop_theme';
 const COMBO_WINDOW = 1000; // 1 second to continue combo
 
 const App: React.FC = () => {
@@ -16,7 +17,10 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<Language>('he');
   const [fontSize, setFontSize] = useState<FontSize>('medium');
   const [gameSpeed, setGameSpeed] = useState<GameSpeed>(1.0);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved ? saved === 'true' : true;
+  });
   
   const [highScore, setHighScore] = useState<number>(() => {
     const saved = localStorage.getItem(HIGH_SCORE_KEY);
@@ -28,6 +32,7 @@ const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(audioService.getMuteStatus());
   const [isSlowed, setIsSlowed] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
+  const [isDistorted, setIsDistorted] = useState(false);
   
   const currentLevel = LEVELS[levelIndex];
   const spawnTimerRef = useRef<number | null>(null);
@@ -36,6 +41,10 @@ const App: React.FC = () => {
   const bubblesRef = useRef<BubbleData[]>([]);
   const lastPopTimeRef = useRef<number>(0);
   const comboTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_KEY, isDark.toString());
+  }, [isDark]);
 
   // Sync refs with state for the physics loop
   useEffect(() => {
@@ -63,6 +72,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     document.documentElement.className = `${isDark ? 'dark' : ''} font-${fontSize}`;
+    if (isDark) {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
   }, [isDark, fontSize]);
 
   // Physics Loop
@@ -81,15 +95,15 @@ const App: React.FC = () => {
       for (let i = 0; i < nextBubbles.length; i++) {
         const b = nextBubbles[i];
         
-        // Buoyancy / Upward force (affected by gameSpeed)
+        // Buoyancy / Upward force
         const buoyancy = (isSlowed ? -0.1 : -0.3) * gameSpeed;
         b.vy += buoyancy;
 
-        // Apply velocities (affected by gameSpeed)
+        // Apply velocities
         b.x += b.vx * gameSpeed;
         b.y += b.vy * gameSpeed;
 
-        // Friction / Drag (affected by gameSpeed)
+        // Friction / Drag
         b.vx *= (1 - (0.01 * gameSpeed));
         b.vy *= (1 - (0.01 * gameSpeed));
 
@@ -113,7 +127,6 @@ const App: React.FC = () => {
           const minDistance = (b.size + b2.size) / 2;
 
           if (distance < minDistance) {
-            // Collision resolution
             const angle = Math.atan2(dy, dx);
             const targetX = b2.x + b2.size / 2 + Math.cos(angle) * minDistance;
             const targetY = b2.y + b2.size / 2 + Math.sin(angle) * minDistance;
@@ -130,7 +143,6 @@ const App: React.FC = () => {
 
       setBubbles(nextBubbles);
       
-      // Visualization
       const intensity = audioService.getBeatIntensity();
       if (containerRef.current) {
         containerRef.current.style.setProperty('--beat-intensity', intensity.toString());
@@ -145,9 +157,13 @@ const App: React.FC = () => {
     return () => cancelAnimationFrame(animationFrameId);
   }, [state, isSlowed, gameSpeed]);
 
-  const triggerShake = useCallback(() => {
+  const triggerBombEffect = useCallback(() => {
     setIsShaking(true);
-    setTimeout(() => setIsShaking(false), 400);
+    setIsDistorted(true);
+    setTimeout(() => {
+      setIsShaking(false);
+      setIsDistorted(false);
+    }, 600);
   }, []);
 
   useEffect(() => {
@@ -170,7 +186,6 @@ const App: React.FC = () => {
     else if (rand < 0.18) type = BubbleType.SLOW_MO;
 
     const baseSpeed = currentLevel.speedRange[0] + Math.random() * (currentLevel.speedRange[1] - currentLevel.speedRange[0]);
-    // The visual/actual vertical velocity is influenced by gameSpeed in the physics loop.
     const speed = isSlowed ? baseSpeed * 0.5 : baseSpeed;
     
     const newBubble: BubbleData = {
@@ -185,7 +200,7 @@ const App: React.FC = () => {
   const handleStart = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleResume = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleReset = () => {
-    setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsShaking(false); setCombo(0);
+    setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsShaking(false); setIsDistorted(false); setCombo(0);
     setState(GameState.START); audioService.pauseMusic();
     if (slowTimeoutRef.current) clearTimeout(slowTimeoutRef.current);
   };
@@ -204,16 +219,16 @@ const App: React.FC = () => {
     setCombo(currentCombo);
     lastPopTimeRef.current = now;
 
-    const multiplier = Math.min(1 + (currentCombo * 0.2), 5); // Max 5x multiplier
+    const multiplier = Math.min(1 + (currentCombo * 0.2), 5);
     let points = 0;
 
     switch (bubble.type) {
       case BubbleType.GOLDEN: points = 10; break;
       case BubbleType.BOMB:
-        triggerShake();
+        triggerBombEffect();
         setBubbles(prev => { 
           const count = prev.length;
-          setScore(s => s + Math.floor(count * 0.7 * multiplier) + 5); 
+          setScore(s => s + Math.floor(count * 0.7 * multiplier) + 15); 
           return []; 
         });
         return;
@@ -231,7 +246,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       setBubbles(prev => prev.filter(b => b.id !== bubble.id));
     }, 300);
-  }, [state, triggerShake, combo]);
+  }, [state, triggerBombEffect, combo]);
 
   const toggleMute = () => {
     const newMuted = audioService.toggleMute();
@@ -241,7 +256,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (state === GameState.PLAYING) {
-      // Spawn rate is inversely proportional to gameSpeed (higher speed = lower delay between spawns)
       const baseRate = isSlowed ? currentLevel.spawnRate * 2 : currentLevel.spawnRate;
       const rate = baseRate / gameSpeed;
       spawnTimerRef.current = window.setInterval(spawnBubble, rate);
@@ -253,16 +267,16 @@ const App: React.FC = () => {
     if (score >= currentLevel.targetScore) {
       if (levelIndex < LEVELS.length - 1) {
         setState(GameState.LEVEL_UP);
-        triggerShake(); setIsSlowed(false); setBubbles([]); setCombo(0);
+        triggerBombEffect(); setIsSlowed(false); setBubbles([]); setCombo(0);
         setTimeout(() => { setLevelIndex(prev => prev + 1); setState(GameState.PLAYING); }, 3000); 
       }
     }
-  }, [score, currentLevel.targetScore, levelIndex, triggerShake]);
+  }, [score, currentLevel.targetScore, levelIndex, triggerBombEffect]);
 
   return (
     <div 
       ref={containerRef} 
-      className={`relative w-full h-screen overflow-hidden transition-all duration-1000 ${currentLevel.bottleColor} ${isShaking ? 'screen-shake' : ''}`} 
+      className={`relative w-full h-screen overflow-hidden transition-all duration-1000 ${currentLevel.bottleColor} ${isShaking ? 'screen-shake' : ''} ${isDistorted ? 'is-distorted' : ''}`} 
       style={{ '--beat-intensity': '0', '--beat-scale': '1', '--beat-brightness': '1' } as any}
     >
       <div className="absolute inset-0 pointer-events-none opacity-40 mix-blend-overlay" style={{ background: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 70%)`, transform: `scale(var(--beat-scale))`, filter: `brightness(var(--beat-brightness))` }}></div>
@@ -287,13 +301,11 @@ const App: React.FC = () => {
         state={state} score={score} highScore={highScore} level={currentLevel} lang={lang} fontSize={fontSize} gameSpeed={gameSpeed}
         onStart={handleStart} onResume={handleResume} onReset={handleReset} onTogglePause={handleTogglePause}
         isMuted={isMuted} onToggleMute={toggleMute} onLanguageChange={setLang} onFontSizeChange={setFontSize} onGameSpeedChange={setGameSpeed}
-        onToggleTheme={() => setIsDark(!isDark)}
+        onToggleTheme={() => setIsDark(!isDark)} isDark={isDark}
         combo={combo}
       />
 
       <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]"></div>
-      <div className="absolute left-[8%] top-0 bottom-0 w-12 bg-white/5 blur-3xl pointer-events-none"></div>
-      <div className="absolute right-[8%] top-0 bottom-0 w-16 bg-white/10 blur-3xl pointer-events-none"></div>
     </div>
   );
 };

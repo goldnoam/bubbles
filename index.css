@@ -1,0 +1,98 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --font-size-base: 16px;
+}
+
+html { 
+    font-size: var(--font-size-base); 
+}
+
+.font-small { --font-size-base: 14px; }
+.font-medium { --font-size-base: 16px; }
+.font-large { --font-size-base: 20px; }
+
+@keyframes bubble-float {
+    0% { transform: translateY(110vh) scale(0.3); opacity: 0; }
+    3% { transform: translateY(102vh) scale(1.2); opacity: 1; }
+    6% { transform: translateY(98vh) scale(1); opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-20vh) scale(1.1); opacity: 0; }
+}
+
+@keyframes bubble-wobble {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(12px) rotate(4deg); }
+    75% { transform: translateX(-12px) rotate(-4deg); }
+}
+
+@keyframes bubble-pop {
+    0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+    50% { transform: scale(1.6); opacity: 0.6; filter: brightness(1.5); border-width: 4px; }
+    100% { transform: scale(2.2); opacity: 0; filter: brightness(2); }
+}
+
+@keyframes bomb-explosion {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(4); opacity: 0; border-width: 10px; }
+}
+
+@keyframes particle-out {
+    0% { transform: translate(0,0); opacity: 1; }
+    100% { transform: translate(var(--tw-translate-x), var(--tw-translate-y)); opacity: 0; }
+}
+
+@keyframes sparkle {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes trail-fizz {
+    0% { transform: translateY(0) scale(1); opacity: 0.8; }
+    100% { transform: translateY(40px) scale(0.2); opacity: 0; }
+}
+
+@keyframes screen-shake {
+    0%, 100% { transform: translate(0, 0); }
+    10%, 30%, 50%, 70%, 90% { transform: translate(-8px, 0); }
+    20%, 40%, 60%, 80% { transform: translate(8px, 0); }
+}
+
+@keyframes distort {
+    0% { filter: contrast(1) brightness(1) saturate(1); }
+    20% { filter: contrast(2) brightness(1.5) saturate(2) hue-rotate(90deg); transform: scale(1.05); }
+    40% { filter: contrast(1.5) brightness(1.2) saturate(1.5) hue-rotate(-90deg); transform: scale(0.95); }
+    100% { filter: contrast(1) brightness(1) saturate(1); transform: scale(1); }
+}
+
+.bubble-container { animation: bubble-float linear forwards; }
+.bubble-inner { animation: bubble-wobble ease-in-out infinite; }
+.popping { animation: bubble-pop 0.25s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards !important; }
+.bomb-explode { animation: bomb-explosion 0.5s ease-out forwards !important; }
+.sparkle-effect { animation: sparkle 2s infinite ease-in-out; }
+.trail-dot { animation: trail-fizz 0.8s ease-out infinite; }
+.screen-shake { animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+.is-distorted { animation: distort 0.6s ease-out forwards; }
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #f0f0f0;
+    user-select: none;
+    font-family: system-ui, -apple-system, sans-serif;
+    touch-action: none;
+}
+
+body.dark {
+    background: #000;
+}
+
+[dir="ltr"] .text-right-custom { text-align: left; }
+[dir="rtl"] .text-right-custom { text-align: right; }
+
+input::-webkit-calendar-picker-indicator {
+    display: none !important;
+}
