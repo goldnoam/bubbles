@@ -60,6 +60,24 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused }) => {
         </>
       )}
 
+      {/* Explosion Particles for Bomb */}
+      {isPopping && data.type === BubbleType.BOMB && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {[...Array(12)].map((_, i) => (
+            <div 
+              key={i}
+              className="absolute w-2 h-2 bg-red-400 rounded-full"
+              style={{
+                '--tw-translate-x': `${Math.cos(i * 30 * Math.PI / 180) * 80}px`,
+                '--tw-translate-y': `${Math.sin(i * 30 * Math.PI / 180) * 80}px`,
+                animation: 'particle-out 0.4s ease-out forwards'
+              } as any}
+            />
+          ))}
+          <div className="absolute inset-0 rounded-full border-4 border-red-500/50 bomb-explode"></div>
+        </div>
+      )}
+
       <div
         onClick={handlePop}
         onTouchStart={handlePop}
@@ -72,11 +90,8 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused }) => {
         {!isPopping && (
           <>
             {getIcon()}
-            {/* Glossy reflection / Glint - Sparkles on spawn and life */}
             <div className="absolute top-[15%] right-[20%] w-1/4 h-1/4 bg-white/40 rounded-full blur-[1px] sparkle-effect"></div>
             <div className="absolute bottom-[20%] left-[25%] w-1/5 h-1/5 bg-white/10 rounded-full blur-[1px]"></div>
-            
-            {/* Subtle center glow for special bubbles */}
             {data.type !== BubbleType.NORMAL && (
               <div className="absolute inset-0 rounded-full bg-white/5 blur-md"></div>
             )}

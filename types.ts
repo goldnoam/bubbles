@@ -1,19 +1,19 @@
 
 export interface Level {
   id: number;
-  name: string;
+  nameKey: string;
   bottleColor: string;
   bubbleColor: string;
   targetScore: number;
-  spawnRate: number; // milliseconds between spawns
-  speedRange: [number, number]; // seconds for animation
+  spawnRate: number;
+  speedRange: [number, number];
 }
 
 export enum BubbleType {
   NORMAL = 'NORMAL',
-  SLOW_MO = 'SLOW_MO', // Slows down spawn rate
-  BOMB = 'BOMB',       // Clears all bubbles
-  GOLDEN = 'GOLDEN'    // Extra points
+  SLOW_MO = 'SLOW_MO',
+  BOMB = 'BOMB',
+  GOLDEN = 'GOLDEN'
 }
 
 export interface BubbleData {
@@ -32,3 +32,6 @@ export enum GameState {
   LEVEL_UP = 'LEVEL_UP',
   GAME_OVER = 'GAME_OVER'
 }
+
+export type Language = 'en' | 'he' | 'zh' | 'hi' | 'de' | 'es' | 'fr';
+export type FontSize = 'small' | 'medium' | 'large';
