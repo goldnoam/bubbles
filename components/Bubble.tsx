@@ -6,9 +6,10 @@ interface BubbleProps {
   data: BubbleData;
   onPop: (bubble: BubbleData) => void;
   isPaused: boolean;
+  combo: number;
 }
 
-const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused }) => {
+const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, combo }) => {
   const [isPopping, setIsPopping] = useState(false);
 
   const handlePop = (e: React.MouseEvent | React.TouchEvent) => {
@@ -42,15 +43,24 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused }) => {
 
   return (
     <div
-      className="absolute bubble-container"
+      className="absolute select-none cursor-pointer"
       style={{
-        left: `${data.x}%`,
+        left: 0,
+        top: 0,
         width: `${data.size}px`,
         height: `${data.size}px`,
-        animationDuration: `${data.speed}s`,
-        animationPlayState: isPaused ? 'paused' : 'running',
+        transform: `translate3d(${data.x}px, ${data.y}px, 0)`,
+        transition: 'transform 0.016s linear', // smooth interpolation
       }}
     >
+      {/* Combo Aura */}
+      {!isPopping && combo > 3 && (
+        <div 
+          className="absolute inset-[-10px] rounded-full animate-pulse border-4 border-emerald-400/20 blur-sm"
+          style={{ opacity: Math.min(combo * 0.1, 0.8) }}
+        ></div>
+      )}
+
       {/* Trail particles */}
       {!isPopping && !isPaused && (
         <>
@@ -68,8 +78,8 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused }) => {
               key={i}
               className="absolute w-2 h-2 bg-red-400 rounded-full"
               style={{
-                '--tw-translate-x': `${Math.cos(i * 30 * Math.PI / 180) * 80}px`,
-                '--tw-translate-y': `${Math.sin(i * 30 * Math.PI / 180) * 80}px`,
+                '--tw-translate-x': `${Math.cos(i * 30 * Math.PI / 180) * 120}px`,
+                '--tw-translate-y': `${Math.sin(i * 30 * Math.PI / 180) * 120}px`,
                 animation: 'particle-out 0.4s ease-out forwards'
               } as any}
             />

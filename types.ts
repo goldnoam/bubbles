@@ -19,10 +19,14 @@ export enum BubbleType {
 export interface BubbleData {
   id: string;
   x: number;
+  y: number;
+  vx: number;
+  vy: number;
   size: number;
   speed: number;
   color: string;
   type: BubbleType;
+  mass: number;
 }
 
 export enum GameState {
@@ -35,3 +39,4 @@ export enum GameState {
 
 export type Language = 'en' | 'he' | 'zh' | 'hi' | 'de' | 'es' | 'fr';
 export type FontSize = 'small' | 'medium' | 'large';
+export type GameSpeed = number;

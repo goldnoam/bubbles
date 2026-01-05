@@ -72,6 +72,7 @@ export const I18N = {
     grape: "Purple Grape",
     soda: "Blue Soda Water",
     lang: "English",
+    gameSpeed: "Game Speed",
     instruction: "You are inside a fizzy drink bottle! Pop bubbles to the beat. Golden ones are worth more!"
   },
   he: {
@@ -96,6 +97,7 @@ export const I18N = {
     grape: "ענבים סגולים",
     soda: "מי סודה כחולים",
     lang: "עברית",
+    gameSpeed: "מהירות משחק",
     instruction: "אתה בתוך בקבוק משקה מוגז! פוצץ בועות לקצב ה'פופקורן'. בועות זהב שוות יותר!"
   },
   zh: {
@@ -120,6 +122,7 @@ export const I18N = {
     grape: "紫葡萄",
     soda: "蓝色苏打水",
     lang: "中文",
+    gameSpeed: "游戏速度",
     instruction: "你在一个汽水瓶里！跟随节拍消除气泡。金色的气泡更值钱！"
   },
   hi: {
@@ -144,6 +147,7 @@ export const I18N = {
     grape: "बैंगनी अंगूर",
     soda: "नीला सोडा पानी",
     lang: "हिन्दी",
+    gameSpeed: "खेल की गति",
     instruction: "आप फ़िज़ी ड्रिंक की बोतल के अंदर हैं! ताल पर बुलबुले फोड़ें। सुनहरे बुलबुले ज़्यादा कीमती हैं!"
   },
   de: {
@@ -168,6 +172,7 @@ export const I18N = {
     grape: "Lila Traube",
     soda: "Blaues Sodawasser",
     lang: "Deutsch",
+    gameSpeed: "Spielgeschwindigkeit",
     instruction: "Du bist in einer Sprudelflasche! Lass Blasen zum Takt platzen. Goldene sind mehr wert!"
   },
   es: {
@@ -192,6 +197,7 @@ export const I18N = {
     grape: "Uva morada",
     soda: "Sifón azul",
     lang: "Español",
+    gameSpeed: "Velocidad del juego",
     instruction: "¡Estás dentro de una botella de refresco! Explota burbujas al ritmo. ¡Las doradas valen más!"
   },
   fr: {
@@ -216,6 +222,7 @@ export const I18N = {
     grape: "Raisin violet",
     soda: "Eau gazeuse bleue",
     lang: "Français",
+    gameSpeed: "Vitesse du jeu",
     instruction: "Vous êtes dans une bouteille de soda ! Éclatez les bulles en rythme. Les dorées valent plus !"
   }
 };
