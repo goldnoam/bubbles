@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fizzy-pop-v1';
+const CACHE_NAME = 'fizzy-pop-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -17,29 +17,18 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only intercept GET requests
   if (event.request.method !== 'GET') return;
-
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request).catch(() => {
-        // Fallback for failed fetches when offline
-        return caches.match('/');
-      });
+      return response || fetch(event.request).catch(() => caches.match('/'));
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) => Promise.all(
+      keys.map(k => k !== CACHE_NAME && caches.delete(k))
+    ))
   );
 });

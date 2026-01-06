@@ -13,7 +13,7 @@ const TRACKS: Record<string, string> = {
 class AudioService {
   private music: HTMLAudioElement | null = null;
   private popSound: HTMLAudioElement | null = null;
-  private isMuted: boolean = true; // Changed to true by default as requested
+  private isMuted: boolean = false; 
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private source: MediaElementAudioSourceNode | null = null;
@@ -29,10 +29,7 @@ class AudioService {
     this.musicVolume = parseFloat(localStorage.getItem(VOLUME_KEY_MUSIC) || '0.6');
     this.sfxVolume = parseFloat(localStorage.getItem(VOLUME_KEY_SFX) || '0.5');
     this.currentTrackKey = localStorage.getItem(TRACK_KEY) || 'popcorn';
-
     this.initMusicElement();
-    
-    // Snappier pop sound
     this.popSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
   }
 
@@ -42,12 +39,10 @@ class AudioService {
       this.music.pause();
       this.music.src = '';
     }
-
     if (!url) {
       this.music = null;
       return;
     }
-
     this.music = new Audio(url);
     this.music.loop = true;
     this.music.crossOrigin = "anonymous";
@@ -57,80 +52,40 @@ class AudioService {
 
   setMusicTrack(trackKey: string) {
     if (this.currentTrackKey === trackKey) return;
-    
     const wasPlaying = this.music ? !this.music.paused : false;
     this.currentTrackKey = trackKey;
     localStorage.setItem(TRACK_KEY, trackKey);
-    
     this.initMusicElement();
-    
-    // If we changed to a valid track and it was playing, resume playing
-    if (wasPlaying && trackKey !== 'none') {
-      this.playMusic();
-    }
+    if (wasPlaying && trackKey !== 'none') this.playMusic();
   }
 
-  getMusicTrack() {
-    return this.currentTrackKey;
-  }
+  getMusicTrack() { return this.currentTrackKey; }
 
   private initAudioContext() {
     if (this.audioContext || !this.music) return;
-
     try {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
-      
       this.source = this.audioContext.createMediaElementSource(this.music);
       this.source.connect(this.analyser);
       this.analyser.connect(this.audioContext.destination);
-      
-      const bufferLength = this.analyser.frequencyBinCount;
-      this.dataArray = new Uint8Array(bufferLength);
-    } catch (e) {
-      console.warn("Audio Context initialization failed:", e);
-    }
+      this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    } catch (e) { console.warn("Audio Context initialization failed:", e); }
   }
 
-  setMasterVolume(v: number) {
-    this.masterVolume = v;
-    localStorage.setItem(VOLUME_KEY_MASTER, v.toString());
-    this.updateMusicVolume();
-  }
+  setMasterVolume(v: number) { this.masterVolume = v; localStorage.setItem(VOLUME_KEY_MASTER, v.toString()); this.updateMusicVolume(); }
+  setMusicVolume(v: number) { this.musicVolume = v; localStorage.setItem(VOLUME_KEY_MUSIC, v.toString()); this.updateMusicVolume(); }
+  setSfxVolume(v: number) { this.sfxVolume = v; localStorage.setItem(VOLUME_KEY_SFX, v.toString()); }
+  getVolumes() { return { master: this.masterVolume, music: this.musicVolume, sfx: this.sfxVolume }; }
 
-  setMusicVolume(v: number) {
-    this.musicVolume = v;
-    localStorage.setItem(VOLUME_KEY_MUSIC, v.toString());
-    this.updateMusicVolume();
-  }
-
-  setSfxVolume(v: number) {
-    this.sfxVolume = v;
-    localStorage.setItem(VOLUME_KEY_SFX, v.toString());
-  }
-
-  getVolumes() {
-    return {
-      master: this.masterVolume,
-      music: this.musicVolume,
-      sfx: this.sfxVolume
-    };
-  }
-
-  private updateMusicVolume() {
-    if (this.music) {
-      this.music.volume = this.musicVolume * this.masterVolume;
-    }
-  }
+  private updateMusicVolume() { if (this.music) this.music.volume = this.musicVolume * this.masterVolume; }
 
   toggleMute() {
     this.isMuted = !this.isMuted;
     if (this.music) {
       this.music.muted = this.isMuted;
-      if (!this.isMuted) {
-        this.playMusic();
-      }
+      if (!this.isMuted) this.playMusic(); else this.pauseMusic();
     }
     return this.isMuted;
   }
@@ -138,16 +93,12 @@ class AudioService {
   playMusic() {
     if (this.music && !this.isMuted && this.currentTrackKey !== 'none') {
       this.initAudioContext();
-      if (this.audioContext?.state === 'suspended') {
-        this.audioContext.resume();
-      }
-      this.music.play().catch(e => console.log("Audio play deferred until user interaction"));
+      if (this.audioContext?.state === 'suspended') this.audioContext.resume();
+      this.music.play().catch(() => console.log("Audio deferred"));
     }
   }
 
-  pauseMusic() {
-    this.music?.pause();
-  }
+  pauseMusic() { this.music?.pause(); }
 
   playPop() {
     if (!this.isMuted && this.popSound) {
@@ -159,21 +110,13 @@ class AudioService {
 
   getBeatIntensity(): number {
     if (!this.analyser || !this.dataArray || this.isMuted || !this.music || this.music.paused) return 0;
-    
     this.analyser.getByteFrequencyData(this.dataArray);
-    
     let sum = 0;
-    const binsToAnalyze = 15; // Low frequencies
-    for (let i = 0; i < binsToAnalyze; i++) {
-      sum += this.dataArray[i];
-    }
-    
-    return sum / (binsToAnalyze * 255);
+    for (let i = 0; i < 15; i++) sum += this.dataArray[i];
+    return sum / (15 * 255);
   }
 
-  getMuteStatus() {
-    return this.isMuted;
-  }
+  getMuteStatus() { return this.isMuted; }
 }
 
 export const audioService = new AudioService();

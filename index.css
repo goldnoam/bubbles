@@ -1,97 +1,63 @@
 
+// Add comment above each fix
+// Adding responsive font size classes and accessibility focus rings
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-    --font-size-base: 16px;
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.5s ease, color 0.5s ease;
 }
 
-html { 
-    font-size: var(--font-size-base); 
+/* Font size classes for accessibility */
+body.size-small { font-size: 14px; }
+body.size-medium { font-size: 16px; }
+body.size-large { font-size: 20px; }
+
+@keyframes popping {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
 }
 
-.font-small { --font-size-base: 14px; }
-.font-medium { --font-size-base: 16px; }
-.font-large { --font-size-base: 20px; }
-
-@keyframes bubble-wobble {
-    0%, 100% { border-radius: 50%; transform: scale(1); }
-    50% { border-radius: 48% 52% 52% 48% / 52% 48% 52% 48%; transform: scale(1.02); }
+.popping {
+  animation: popping 0.1s ease-out forwards;
 }
 
-@keyframes bubble-pop {
-    0% { transform: scale(1); opacity: 1; filter: brightness(1); }
-    50% { transform: scale(1.8); opacity: 0.5; filter: brightness(2); border-width: 6px; }
-    100% { transform: scale(2.5); opacity: 0; filter: brightness(3); }
+.bubble-inner {
+  transition: transform 0.1s ease;
 }
 
-@keyframes bomb-explosion {
-    0% { transform: scale(0); opacity: 1; border-color: white; }
-    100% { transform: scale(5); opacity: 0; border-width: 15px; border-color: red; }
+.bubble-inner:active {
+  transform: scale(0.9);
 }
 
-@keyframes particle-out {
-    0% { transform: translate(0,0); opacity: 1; }
-    100% { transform: translate(var(--tw-translate-x), var(--tw-translate-y)); opacity: 0; }
+.scale-in {
+  animation: scale-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-@keyframes sparkle {
-    0%, 100% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
+@keyframes scale-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.screen-shake {
+  animation: screen-shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
 
 @keyframes screen-shake {
-    0%, 100% { transform: translate(0, 0); }
-    10%, 30%, 50%, 70%, 90% { transform: translate(-10px, -5px); }
-    20%, 40%, 60%, 80% { transform: translate(10px, 5px); }
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 
-@keyframes distort {
-    0% { filter: contrast(1) brightness(1) saturate(1); }
-    25% { filter: contrast(2.5) brightness(1.8) saturate(3) hue-rotate(45deg); transform: scale(1.08); }
-    75% { filter: contrast(1.8) brightness(0.8) saturate(1.5) hue-rotate(-45deg); transform: scale(0.92); }
-    100% { filter: contrast(1) brightness(1) saturate(1); transform: scale(1); }
-}
-
-.bubble-inner { animation: bubble-wobble 3s ease-in-out infinite; }
-.popping { animation: bubble-pop 0.3s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards !important; }
-.bomb-explode { animation: bomb-explosion 0.6s ease-out forwards !important; }
-.sparkle-effect { animation: sparkle 2.5s infinite ease-in-out; }
-.screen-shake { animation: screen-shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
-.is-distorted { animation: distort 0.7s ease-out forwards; }
-
-body {
-    margin: 0;
-    overflow: hidden;
-    background: #0f172a;
-    user-select: none;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    touch-action: none;
-}
-
-[dir="ltr"] .text-right-custom { text-align: left; }
-[dir="rtl"] .text-right-custom { text-align: right; }
-
-/* Custom Range Input */
-input[type=range] {
-  -webkit-appearance: none;
-  background: transparent;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  background: #10b981;
-  cursor: pointer;
-  margin-top: -7px;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-}
-input[type=range]::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 6px;
-  cursor: pointer;
-  background: rgba(255,255,255,0.1);
-  border-radius: 3px;
+/* Accessibility focus rings */
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 3px solid #10b981;
+  outline-offset: 2px;
 }
