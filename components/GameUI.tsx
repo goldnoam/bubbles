@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, Level, Language, FontSize, GameSpeed } from '../types';
 import { I18N } from '../constants';
 
@@ -50,10 +49,15 @@ const GameUI: React.FC<GameUIProps> = ({
     }
   }, [score, displayScore]);
 
+  // Accessibility: Native Browser Text-to-Speech
   const speak = (text: string) => {
     if (isMuted) return;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'he' ? 'he-IL' : (lang === 'en' ? 'en-US' : 'en-US');
+    // Attempt to match language
+    const langMap: Record<string, string> = {
+      he: 'he-IL', en: 'en-US', zh: 'zh-CN', hi: 'hi-IN', de: 'de-DE', es: 'es-ES', fr: 'fr-FR'
+    };
+    utterance.lang = langMap[lang] || 'en-US';
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
@@ -92,9 +96,11 @@ Timestamp: ${new Date().toLocaleString()}
     const data = e.dataTransfer.getData("text");
     if (data) {
         setSearchValue(data);
-        speak(`Imported text: ${data}`);
+        speak(`Imported: ${data}`);
     }
   };
+
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between z-50 text-white p-6 overflow-hidden">
@@ -158,30 +164,54 @@ Timestamp: ${new Date().toLocaleString()}
             <div className="mb-6 text-yellow-400 font-bold text-xl uppercase tracking-widest">{t.highScore}: {highScore}</div>
             <p className="text-lg opacity-80 mb-6 leading-relaxed">{t.instruction}</p>
             
-            <div className="relative mb-6 text-left-custom" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
+            {/* Input with drag/drop & autocomplete & clear */}
+            <div 
+                className="relative mb-6 text-left-custom" 
+                onDrop={handleDrop} 
+                onDragOver={handleDragOver}
+            >
               <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder={t.searchPlaceholder}
-                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2 outline-none focus:border-emerald-500 text-sm text-white"
-                  value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  aria-label="Search Flavors"
-                  aria-autocomplete="list"
-                />
-                {searchValue && (
-                  <button onClick={() => { setSearchValue(""); speak("Cleared"); }} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-red-500/20 transition-colors" aria-label="Clear Search">
-                    <i className="fas fa-times"></i>
-                  </button>
-                )}
-                <button onClick={handleExport} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-blue-500/20 transition-colors" title="Export Stats" aria-label="Export Stats">
+                <div className="relative flex-1">
+                  <input 
+                    type="text" 
+                    placeholder={t.searchPlaceholder}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-sm text-white transition-colors"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    aria-label="Search Flavors"
+                    aria-autocomplete="list"
+                  />
+                  {searchValue && (
+                    <button 
+                        onClick={() => { setSearchValue(""); speak("Cleared"); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                        aria-label="Clear Search"
+                    >
+                      <i className="fas fa-times-circle"></i>
+                    </button>
+                  )}
+                </div>
+                <button 
+                    onClick={handleExport} 
+                    className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center hover:bg-blue-500/20 border border-white/10 transition-colors" 
+                    title="Export Stats" 
+                    aria-label="Export Stats"
+                >
                   <i className="fas fa-file-export"></i>
                 </button>
               </div>
+              
               {filteredFlavors.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-black/80 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[100]" role="listbox">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[100] max-h-40 overflow-y-auto" role="listbox">
                   {filteredFlavors.map(f => (
-                    <div key={f} className="px-4 py-2 hover:bg-white/10 cursor-pointer text-sm" onClick={() => { setSearchValue(f); speak(f); }} role="option">{f}</div>
+                    <div 
+                        key={f} 
+                        className="px-4 py-3 hover:bg-emerald-500/30 cursor-pointer text-sm border-b border-white/5 last:border-0" 
+                        onClick={() => { setSearchValue(f); speak(f); }}
+                        role="option"
+                    >
+                        {f}
+                    </div>
                   ))}
                 </div>
               )}
@@ -189,35 +219,46 @@ Timestamp: ${new Date().toLocaleString()}
 
             <button 
               onClick={() => handleAction(onStart, t.start)}
-              className="w-full py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black text-2xl rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-emerald-500/30"
+              className="w-full py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black text-2xl rounded-2xl hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-emerald-500/30 mb-8"
               aria-label="Start Game"
             >
               {t.start}
             </button>
 
-            <div className="mt-8 flex flex-col gap-4">
+            <div className="flex flex-col gap-5 border-t border-white/10 pt-6">
               <div className="flex flex-wrap justify-center gap-3">
                 <select 
-                  className="bg-white/10 rounded-lg px-2 py-1 text-sm outline-none border border-white/20 text-white" 
+                  className="bg-white/10 rounded-lg px-3 py-2 text-sm outline-none border border-white/20 text-white cursor-pointer hover:bg-white/20 transition-colors" 
                   value={lang} 
                   onChange={(e) => { onLanguageChange(e.target.value as Language); speak("Language Changed"); }}
                   aria-label="Change Language"
                 >
-                  {Object.keys(I18N).map(l => <option key={l} value={l} className="bg-black">{I18N[l as keyof typeof I18N].lang}</option>)}
+                  {Object.keys(I18N).map(l => <option key={l} value={l} className="bg-slate-900">{I18N[l as keyof typeof I18N].lang}</option>)}
                 </select>
+                
                 <div className="flex bg-white/10 rounded-lg border border-white/20 p-1">
                   {(['small', 'medium', 'large'] as FontSize[]).map(s => (
-                    <button key={s} onClick={() => { onFontSizeChange(s); speak(`Font size ${s}`); }} className={`px-2 py-0.5 rounded text-xs transition-colors ${fontSize === s ? 'bg-emerald-500 text-white' : 'hover:bg-white/10 text-white'}`} aria-label={`Font size ${s}`}>
-                      {s[0].toUpperCase()}
+                    <button 
+                        key={s} 
+                        onClick={() => { onFontSizeChange(s); speak(`Font size ${s}`); }} 
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${fontSize === s ? 'bg-emerald-500 text-white shadow-md' : 'hover:bg-white/10 text-white/70'}`} 
+                        aria-label={`Font size ${s}`}
+                    >
+                      {s === 'small' ? 'A' : s === 'medium' ? 'A+' : 'A++'}
                     </button>
                   ))}
                 </div>
-                <button onClick={() => { onToggleTheme(); speak("Theme Toggled"); }} className={`p-2 rounded-lg border border-white/20 hover:bg-white/20 transition-all ${isDark ? 'bg-white/10' : 'bg-white/30 text-yellow-500'}`} aria-label="Toggle Theme">
-                  <i className={`fas ${isDark ? 'fa-moon' : 'fa-sun'} text-xs`}></i>
+
+                <button 
+                    onClick={() => { onToggleTheme(); speak("Theme Toggled"); }} 
+                    className={`w-10 h-10 flex items-center justify-center rounded-lg border border-white/20 hover:bg-white/20 transition-all ${isDark ? 'bg-white/5 text-blue-300' : 'bg-white/20 text-yellow-400'}`} 
+                    aria-label="Toggle Theme"
+                >
+                  <i className={`fas ${isDark ? 'fa-moon' : 'fa-sun'} text-lg`}></i>
                 </button>
               </div>
               
-              <div className="flex flex-col items-center gap-1 w-full max-w-xs mx-auto">
+              <div className="flex flex-col items-center gap-2 w-full max-w-xs mx-auto">
                 <div className="flex justify-between w-full text-[10px] uppercase font-bold tracking-widest opacity-60 px-1">
                   <span>{t.gameSpeed}</span>
                   <span>{gameSpeed.toFixed(1)}x</span>
@@ -225,7 +266,7 @@ Timestamp: ${new Date().toLocaleString()}
                 <input 
                   type="range" min="0.5" max="2.0" step="0.1" value={gameSpeed} 
                   onChange={(e) => onGameSpeedChange(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                   aria-label="Adjust Game Speed"
                 />
               </div>
@@ -234,42 +275,62 @@ Timestamp: ${new Date().toLocaleString()}
         )}
 
         {state === GameState.PAUSED && (
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center fade-overlay-bg">
-            <div className="bg-black/70 backdrop-blur-2xl p-12 rounded-3xl border border-white/20 text-center max-w-sm pointer-events-auto shadow-2xl overlay-card" role="dialog" aria-labelledby="pause-title">
-              <h2 id="pause-title" className="text-4xl font-black mb-6">{t.pause}</h2>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center fade-overlay-bg">
+            <div className="bg-slate-900/80 backdrop-blur-2xl p-12 rounded-3xl border border-white/20 text-center max-w-sm pointer-events-auto shadow-2xl overlay-card" role="dialog" aria-labelledby="pause-title">
+              <h2 id="pause-title" className="text-4xl font-black mb-6 tracking-tighter">{t.pause}</h2>
               <div className="flex flex-col gap-4">
-                <button onClick={() => handleAction(onResume, t.resume)} className="w-full py-4 bg-emerald-500 text-white font-bold text-xl rounded-2xl active:scale-95">{t.resume}</button>
-                <button onClick={() => handleAction(onReset, t.reset)} className="w-full py-3 bg-white/10 text-white font-medium rounded-xl active:scale-95">{t.reset}</button>
+                <button 
+                    onClick={() => handleAction(onResume, t.resume)} 
+                    className="w-full py-4 bg-emerald-500 text-white font-bold text-xl rounded-2xl active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                    {t.resume}
+                </button>
+                <button 
+                    onClick={() => handleAction(onReset, t.reset)} 
+                    className="w-full py-3 bg-white/10 text-white/80 font-medium rounded-xl active:scale-95 transition-all"
+                >
+                    {t.reset}
+                </button>
               </div>
             </div>
           </div>
         )}
 
         {state === GameState.LEVEL_UP && (
-          <div className="absolute inset-0 bg-emerald-950/20 backdrop-blur-sm flex items-center justify-center fade-overlay-bg">
-            <div className="bg-emerald-600/90 backdrop-blur-xl p-12 rounded-[2rem] border border-white/30 text-center pointer-events-auto shadow-2xl level-up-anim max-w-sm">
-              <h2 className="text-5xl font-black mb-2 text-white">{t.nextLevel}</h2>
-              <p className="text-2xl font-bold text-emerald-100 mb-6">{t[level.nameKey as keyof typeof t]}</p>
-              <div className="text-xs uppercase font-black tracking-[0.2em] text-white/70 animate-pulse">{t.nextDesc}</div>
+          <div className="absolute inset-0 bg-emerald-950/30 backdrop-blur-sm flex items-center justify-center fade-overlay-bg">
+            <div className="bg-emerald-600/90 backdrop-blur-xl p-12 rounded-[2.5rem] border border-white/30 text-center pointer-events-auto shadow-2xl level-up-anim max-w-sm">
+              <h2 className="text-5xl font-black mb-3 text-white tracking-tighter">{t.nextLevel}</h2>
+              <p className="text-2xl font-bold text-emerald-100 mb-8">{t[level.nameKey as keyof typeof t]}</p>
+              <div className="text-xs uppercase font-black tracking-[0.3em] text-white/70 animate-pulse">{t.nextDesc}</div>
             </div>
           </div>
         )}
 
         {state === GameState.GAME_OVER && (
-          <div className="absolute inset-0 bg-red-950/40 backdrop-blur-md flex items-center justify-center fade-overlay-bg">
-            <div className="bg-red-600/90 backdrop-blur-xl p-12 rounded-[2rem] border border-white/30 text-center pointer-events-auto shadow-2xl overlay-card max-w-sm" role="dialog" aria-labelledby="gameover-title">
-              <h2 id="gameover-title" className="text-6xl font-black mb-2 italic tracking-tighter text-white">{t.gameOver}</h2>
+          <div className="absolute inset-0 bg-red-950/50 backdrop-blur-md flex items-center justify-center fade-overlay-bg">
+            <div className="bg-red-600/90 backdrop-blur-xl p-12 rounded-[2.5rem] border border-white/30 text-center pointer-events-auto shadow-2xl overlay-card max-w-sm" role="dialog" aria-labelledby="gameover-title">
+              <h2 id="gameover-title" className="text-6xl font-black mb-4 italic tracking-tighter text-white uppercase">{t.gameOver}</h2>
               <div className="mb-2 text-3xl font-bold text-red-50">{t.score}: {score}</div>
-              <div className="mb-8 text-yellow-300 font-black text-2xl uppercase tracking-wider">{t.highScore}: {highScore}</div>
-              <button onClick={() => handleAction(onReset, t.tryAgain)} className="w-full py-5 bg-white text-red-600 font-black text-2xl rounded-2xl active:scale-95 transition-all shadow-xl">{t.tryAgain}</button>
+              <div className="mb-10 text-yellow-300 font-black text-2xl uppercase tracking-wider">{t.highScore}: {highScore}</div>
+              <button 
+                onClick={() => handleAction(onReset, t.tryAgain)} 
+                className="w-full py-5 bg-white text-red-600 font-black text-2xl rounded-2xl active:scale-95 transition-all shadow-2xl"
+              >
+                {t.tryAgain}
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      <footer className="w-full text-center pointer-events-auto text-[10px] opacity-40 hover:opacity-100 transition-opacity pb-2 space-x-4 flex justify-center items-center">
-        <span>(C) Noam Gold AI 2026</span>
-        <a href="mailto:goldnoamai@gmail.com" className="hover:text-emerald-400 underline decoration-emerald-400/30">{t.feedback}</a>
+      <footer className="w-full text-center pointer-events-auto text-[11px] font-bold opacity-60 hover:opacity-100 transition-opacity pb-4 flex flex-wrap justify-center items-center gap-4">
+        <span className="bg-black/20 px-3 py-1 rounded-full">(C) Noam Gold AI 2026</span>
+        <div className="flex items-center gap-1">
+            <i className="fas fa-paper-plane text-[9px]"></i>
+            <a href="mailto:goldnoamai@gmail.com" className="hover:text-emerald-400 underline decoration-emerald-400/30 transition-colors">
+                {t.feedback}: goldnoamai@gmail.com
+            </a>
+        </div>
       </footer>
     </div>
   );
