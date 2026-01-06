@@ -74,84 +74,85 @@ const App: React.FC = () => {
     document.documentElement.className = `${isDark ? 'dark' : ''} font-${fontSize}`;
   }, [isDark, fontSize]);
 
-  useEffect(() => {
-    let animationFrameId: number;
-    const updatePhysics = () => {
-      if (state !== GameState.PLAYING) {
-        animationFrameId = requestAnimationFrame(updatePhysics);
-        return;
-      }
+  const updatePhysics = useCallback(() => {
+    if (state !== GameState.PLAYING && state !== GameState.START) return;
 
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const nextBubbles = [...bubblesRef.current];
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    // Crucial: Map to new objects to avoid mutation issues in React
+    const nextBubbles = bubblesRef.current.map(b => ({ ...b }));
+    
+    const elasticity = 0.85; 
+    const wallElasticity = 0.7;
+    const friction = 0.997; 
+    const buoyancy = (isSlowed ? -0.1 : (isFrozen ? 0 : -0.3)) * (state === GameState.START ? 0.3 : gameSpeed);
+
+    for (let i = 0; i < nextBubbles.length; i++) {
+      const b = nextBubbles[i];
       
-      const elasticity = 0.85; 
-      const wallElasticity = 0.7;
-      const friction = 0.997; 
-      const buoyancy = (isSlowed ? -0.1 : (isFrozen ? 0 : -0.3)) * gameSpeed;
+      if (!isFrozen) {
+        b.vy += buoyancy;
 
-      for (let i = 0; i < nextBubbles.length; i++) {
-        const b = nextBubbles[i];
-        
-        if (!isFrozen) {
-          b.vy += buoyancy;
+        for (let j = 0; j < nextBubbles.length; j++) {
+          if (i === j) continue;
+          const b2 = nextBubbles[j];
+          
+          const dx = b2.x - b.x;
+          const dy = b2.y - b.y;
+          const distSq = dx * dx + dy * dy;
 
-          for (let j = 0; j < nextBubbles.length; j++) {
-            if (i === j) continue;
-            const b2 = nextBubbles[j];
-            
-            const dx = b2.x - b.x;
-            const dy = b2.y - b.y;
-            const distSq = dx * dx + dy * dy;
-
-            // MAGNET EFFECT: Gravity-like pull towards the magnet bubble
-            if (b2.type === BubbleType.MAGNET) {
-              const magRange = 500;
-              if (distSq < magRange * magRange) {
-                const dist = Math.sqrt(distSq);
+          // MAGNET EFFECT
+          if (b2.type === BubbleType.MAGNET) {
+            const magRange = 500;
+            if (distSq < magRange * magRange) {
+              const dist = Math.sqrt(distSq);
+              if (dist > 0) {
                 const pullStrength = Math.max(0, (magRange - dist) / 3500);
                 b.vx += (dx / dist) * pullStrength * gameSpeed;
                 b.vy += (dy / dist) * pullStrength * gameSpeed;
               }
             }
-
-            // STICKY EFFECT: Viscous drag around sticky bubbles
-            if (b2.type === BubbleType.STICKY) {
-              const stickyRange = 250;
-              if (distSq < stickyRange * stickyRange) {
-                b.vx *= 0.93;
-                b.vy *= 0.93;
-              }
-            }
           }
 
-          b.x += b.vx * gameSpeed;
-          b.y += b.vy * gameSpeed;
-          b.rotation += b.angularVelocity * gameSpeed;
-
-          b.vx *= friction;
-          b.vy *= friction;
-          b.angularVelocity *= 0.99;
+          // STICKY EFFECT
+          if (b2.type === BubbleType.STICKY) {
+            const stickyRange = 250;
+            if (distSq < stickyRange * stickyRange) {
+              b.vx *= 0.93;
+              b.vy *= 0.93;
+            }
+          }
         }
 
-        // Wall collisions
-        if (b.x < 0) { 
-          b.x = 0; b.vx *= -wallElasticity; 
-          b.angularVelocity += b.vy * 0.1; 
-        }
-        if (b.x > width - b.size) { 
-          b.x = width - b.size; b.vx *= -wallElasticity; 
-          b.angularVelocity -= b.vy * 0.1;
-        }
-        
-        if (b.y < -b.size * 2) {
-          nextBubbles.splice(i, 1);
-          i--;
-          continue;
-        }
+        b.x += b.vx * (state === GameState.START ? 0.5 : gameSpeed);
+        b.y += b.vy * (state === GameState.START ? 0.5 : gameSpeed);
+        b.rotation += b.angularVelocity * gameSpeed;
 
-        // Collision logic
+        b.vx *= friction;
+        b.vy *= friction;
+        b.angularVelocity *= 0.99;
+      }
+
+      // Wall collisions
+      if (b.x < 0) { 
+        b.x = 0; b.vx *= -wallElasticity; 
+        if (!isFrozen) b.angularVelocity += b.vy * 0.1; 
+      }
+      if (b.x > width - b.size) { 
+        b.x = width - b.size; b.vx *= -wallElasticity; 
+        if (!isFrozen) b.angularVelocity -= b.vy * 0.1;
+      }
+      
+      // Removal logic
+      if (b.y < -b.size * 2) {
+        nextBubbles.splice(i, 1);
+        i--;
+        continue;
+      }
+
+      // Collision logic
+      if (!isFrozen) {
         for (let j = i + 1; j < nextBubbles.length; j++) {
           const b2 = nextBubbles[j];
           const b1c = { x: b.x + b.size/2, y: b.y + b.size/2 };
@@ -161,7 +162,7 @@ const App: React.FC = () => {
           const distance = Math.sqrt(dx * dx + dy * dy);
           const minDistance = (b.size + b2.size) / 2;
 
-          if (distance < minDistance) {
+          if (distance > 0 && distance < minDistance) {
             const nx = dx / distance;
             const ny = dy / distance;
             const rvx = b.vx - b2.vx;
@@ -187,21 +188,26 @@ const App: React.FC = () => {
           }
         }
       }
+    }
 
-      setBubbles(nextBubbles);
-      
-      const intensity = audioService.getBeatIntensity();
-      if (containerRef.current) {
-        containerRef.current.style.setProperty('--beat-intensity', intensity.toString());
-        containerRef.current.style.setProperty('--beat-scale', (1 + intensity * 0.15).toString());
-      }
-
-      animationFrameId = requestAnimationFrame(updatePhysics);
-    };
+    setBubbles(nextBubbles);
     
-    animationFrameId = requestAnimationFrame(updatePhysics);
-    return () => cancelAnimationFrame(animationFrameId);
+    const intensity = audioService.getBeatIntensity();
+    if (containerRef.current) {
+      containerRef.current.style.setProperty('--beat-intensity', intensity.toString());
+      containerRef.current.style.setProperty('--beat-scale', (1 + intensity * 0.15).toString());
+    }
   }, [state, isSlowed, isFrozen, gameSpeed]);
+
+  useEffect(() => {
+    let animationFrameId: number;
+    const loop = () => {
+      updatePhysics();
+      animationFrameId = requestAnimationFrame(loop);
+    };
+    animationFrameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [updatePhysics]);
 
   const triggerBombEffect = useCallback(() => {
     setIsShaking(true);
@@ -219,24 +225,28 @@ const App: React.FC = () => {
     }
   }, [score, highScore]);
 
-  const spawnBubble = useCallback(() => {
+  const spawnBubble = useCallback((forceType?: BubbleType) => {
+    if (isFrozen && state === GameState.PLAYING) return;
+
     const id = Math.random().toString(36).substring(2, 9);
-    const size = 35 + Math.random() * 65; 
+    const size = 45 + Math.random() * 65; // Slightly larger for better visibility
     const x = Math.random() * (window.innerWidth - size);
     const y = window.innerHeight + size;
     
     const rand = Math.random();
-    let type = BubbleType.NORMAL;
-    if (rand < 0.05) type = BubbleType.BOMB;
-    else if (rand < 0.13) type = BubbleType.GOLDEN;
-    else if (rand < 0.17) type = BubbleType.SLOW_MO;
-    else if (rand < 0.21) type = BubbleType.STICKY;
-    else if (rand < 0.25) type = BubbleType.MULTIPLIER;
-    else if (rand < 0.30) type = BubbleType.MAGNET;
-    else if (rand < 0.33) type = BubbleType.FREEZE;
+    let type = forceType || BubbleType.NORMAL;
+    if (!forceType) {
+      if (rand < 0.05) type = BubbleType.BOMB;
+      else if (rand < 0.13) type = BubbleType.GOLDEN;
+      else if (rand < 0.17) type = BubbleType.SLOW_MO;
+      else if (rand < 0.21) type = BubbleType.STICKY;
+      else if (rand < 0.25) type = BubbleType.MULTIPLIER;
+      else if (rand < 0.30) type = BubbleType.MAGNET;
+      else if (rand < 0.34) type = BubbleType.FREEZE;
+    }
 
     const baseSpeed = currentLevel.speedRange[0] + Math.random() * (currentLevel.speedRange[1] - currentLevel.speedRange[0]);
-    const speed = isSlowed ? baseSpeed * 0.4 : (isFrozen ? 0 : baseSpeed);
+    const speed = isSlowed ? baseSpeed * 0.4 : baseSpeed;
     
     const newBubble: BubbleData = {
       id, x, y, size, speed, color: currentLevel.bubbleColor, type,
@@ -247,9 +257,27 @@ const App: React.FC = () => {
       mass: size
     };
     setBubbles(prev => [...prev, newBubble]);
-  }, [currentLevel, isSlowed, isFrozen]);
+  }, [currentLevel, isSlowed, isFrozen, state]);
 
-  const handleStart = () => { setState(GameState.PLAYING); audioService.playMusic(); };
+  // Ambient bubbles for start screen
+  useEffect(() => {
+    if (state === GameState.START) {
+      const interval = setInterval(() => {
+        if (bubblesRef.current.length < 15) {
+          spawnBubble(BubbleType.NORMAL);
+        }
+      }, 1500);
+      return () => clearInterval(interval);
+    }
+  }, [state, spawnBubble]);
+
+  const handleStart = () => { 
+    setBubbles([]); // Clear start screen bubbles
+    setState(GameState.PLAYING); 
+    audioService.playMusic(); 
+    // Spawn initial bunch immediately
+    for (let i = 0; i < 3; i++) spawnBubble();
+  };
   const handleResume = () => { setState(GameState.PLAYING); audioService.playMusic(); };
   const handleReset = () => {
     setScore(0); setLevelIndex(0); setBubbles([]); setIsSlowed(false); setIsFrozen(false); setIsMultiplierActive(false); setIsShaking(false); setIsDistorted(false); setCombo(0);
@@ -297,7 +325,7 @@ const App: React.FC = () => {
       case BubbleType.FREEZE:
         setIsFrozen(true);
         if (freezeTimeoutRef.current) clearTimeout(freezeTimeoutRef.current);
-        freezeTimeoutRef.current = window.setTimeout(() => setIsFrozen(false), 3000);
+        freezeTimeoutRef.current = window.setTimeout(() => setIsFrozen(false), 3500);
         points = 10;
         break;
       case BubbleType.STICKY: points = 15; break;
@@ -322,13 +350,15 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (state === GameState.PLAYING) {
+    if (state === GameState.PLAYING && !isFrozen) {
       const baseRate = isSlowed ? currentLevel.spawnRate * 1.8 : currentLevel.spawnRate;
       const rate = baseRate / gameSpeed;
       spawnTimerRef.current = window.setInterval(spawnBubble, rate);
-    } else { if (spawnTimerRef.current) clearInterval(spawnTimerRef.current); }
+    } else { 
+      if (spawnTimerRef.current) clearInterval(spawnTimerRef.current); 
+    }
     return () => { if (spawnTimerRef.current) clearInterval(spawnTimerRef.current); };
-  }, [state, spawnBubble, currentLevel.spawnRate, isSlowed, gameSpeed]);
+  }, [state, spawnBubble, currentLevel.spawnRate, isSlowed, gameSpeed, isFrozen]);
 
   useEffect(() => {
     if (score >= currentLevel.targetScore) {
@@ -349,7 +379,7 @@ const App: React.FC = () => {
       <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none opacity-30" style={{ background: `linear-gradient(to top, rgba(255,255,255,0.6), transparent)`, transform: `scaleY(calc(0.5 + var(--beat-intensity, 0) * 2))`, transformOrigin: 'bottom' }}></div>
       
       {isSlowed && <div className="absolute inset-0 pointer-events-none bg-blue-500/10 z-10 animate-pulse"></div>}
-      {isFrozen && <div className="absolute inset-0 pointer-events-none bg-cyan-200/20 z-10 backdrop-blur-[2px] border-[40px] border-white/30"></div>}
+      {isFrozen && <div className="absolute inset-0 pointer-events-none bg-cyan-200/20 z-10 backdrop-blur-[2px] border-[40px] border-white/30 transition-all duration-500"></div>}
       {isMultiplierActive && <div className="absolute inset-0 pointer-events-none bg-yellow-500/10 z-10 border-[20px] border-yellow-400/30 blur-2xl animate-pulse"></div>}
 
       <div className="absolute inset-0 overflow-hidden">
@@ -359,6 +389,7 @@ const App: React.FC = () => {
             data={bubble} 
             onPop={handlePop} 
             isPaused={state === GameState.PAUSED} 
+            isGlobalFrozen={isFrozen}
             combo={combo}
           />
         ))}

@@ -13,7 +13,7 @@ const TRACKS: Record<string, string> = {
 class AudioService {
   private music: HTMLAudioElement | null = null;
   private popSound: HTMLAudioElement | null = null;
-  private isMuted: boolean = false;
+  private isMuted: boolean = true; // Changed to true by default as requested
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private source: MediaElementAudioSourceNode | null = null;
