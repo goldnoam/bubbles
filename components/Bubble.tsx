@@ -14,113 +14,88 @@ const Bubble: React.FC<BubbleProps> = ({ data, onPop, isPaused, isGlobalFrozen, 
 
   const handlePop = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    if (isPopping || isPaused || isGlobalFrozen && data.type !== BubbleType.FREEZE) {
-      // Allow popping the freeze bubble even if world is frozen (though it shouldn't happen often)
-    }
     if (isPopping || isPaused) return;
+    
     setIsPopping(true);
-    onPop(data);
+    // Tiny delay to show the popping animation start
+    setTimeout(() => onPop(data), 50);
   };
 
   const getTypeStyles = () => {
     if (isGlobalFrozen) {
-      return 'border-cyan-100 bg-cyan-400/20 shadow-[inset_0_0_10px_rgba(255,255,255,0.5)] scale-[0.98] blur-[0.5px]';
+      return 'border-cyan-200 bg-cyan-400/40 shadow-[inset_0_0_15px_rgba(255,255,255,0.7)] scale-[0.98] blur-[0.5px]';
     }
 
     switch (data.type) {
       case BubbleType.SLOW_MO:
-        return 'border-blue-300 bg-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.5)]';
+        return 'border-blue-400 bg-blue-600/50 shadow-[0_0_15px_rgba(59,130,246,0.6)]';
       case BubbleType.BOMB:
-        return 'border-red-400 bg-red-600/40 shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse';
+        return 'border-red-400 bg-red-700/60 shadow-[0_0_20px_rgba(239,68,68,0.7)] animate-pulse';
       case BubbleType.GOLDEN:
-        return 'border-yellow-200 bg-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.6)]';
+        return 'border-yellow-200 bg-yellow-500/60 shadow-[0_0_25px_rgba(234,179,8,0.8)]';
       case BubbleType.STICKY:
-        return 'border-emerald-300 bg-emerald-700/50 shadow-[0_0_15px_rgba(16,185,129,0.5)]';
+        return 'border-emerald-300 bg-emerald-800/70 shadow-[0_0_15px_rgba(16,185,129,0.7)]';
       case BubbleType.MULTIPLIER:
-        return 'border-cyan-200 bg-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.6)]';
+        return 'border-cyan-200 bg-cyan-500/60 shadow-[0_0_20px_rgba(6,182,212,0.7)]';
       case BubbleType.MAGNET:
-        return 'border-purple-300 bg-purple-600/40 shadow-[0_0_20px_rgba(168,85,247,0.6)]';
+        return 'border-purple-300 bg-purple-700/70 shadow-[0_0_30px_rgba(168,85,247,0.9)] animate-pulse';
       case BubbleType.FREEZE:
-        return 'border-cyan-100 bg-cyan-200/60 shadow-[0_0_20px_rgba(165,243,252,0.8)] animate-pulse';
+        return 'border-cyan-100 bg-cyan-300/70 shadow-[0_0_25px_rgba(165,243,252,0.9)] animate-pulse';
       default:
-        return `border-white/30 ${data.color}`;
+        return `border-white/70 shadow-[0_4px_12px_rgba(0,0,0,0.3)] ${data.color}`;
     }
   };
 
   const getIcon = () => {
-    if (isGlobalFrozen) return <i className="fas fa-snowflake text-white/20" style={{ fontSize: data.size * 0.4 }}></i>;
+    if (isGlobalFrozen) return <i className="fas fa-snowflake text-white/50" style={{ fontSize: data.size * 0.4 }}></i>;
 
     switch (data.type) {
-      case BubbleType.SLOW_MO: return <i className="fas fa-clock text-blue-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
-      case BubbleType.BOMB: return <i className="fas fa-bomb text-red-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
-      case BubbleType.GOLDEN: return <i className="fas fa-star text-yellow-50 opacity-100" style={{ fontSize: data.size * 0.55 }}></i>;
-      case BubbleType.STICKY: return <i className="fas fa-flask text-emerald-100 opacity-90" style={{ fontSize: data.size * 0.45 }}></i>;
+      case BubbleType.SLOW_MO: return <i className="fas fa-clock text-blue-50" style={{ fontSize: data.size * 0.45 }}></i>;
+      case BubbleType.BOMB: return <i className="fas fa-bomb text-red-50" style={{ fontSize: data.size * 0.45 }}></i>;
+      case BubbleType.GOLDEN: return <i className="fas fa-star text-yellow-50" style={{ fontSize: data.size * 0.55 }}></i>;
+      case BubbleType.STICKY: return <i className="fas fa-flask text-emerald-50" style={{ fontSize: data.size * 0.45 }}></i>;
       case BubbleType.MULTIPLIER: return <span className="text-white font-black drop-shadow-md" style={{ fontSize: data.size * 0.45 }}>x2</span>;
-      case BubbleType.MAGNET: return <i className="fas fa-magnet text-purple-100 opacity-95" style={{ fontSize: data.size * 0.45 }}></i>;
-      case BubbleType.FREEZE: return <i className="fas fa-snowflake text-cyan-50 opacity-100" style={{ fontSize: data.size * 0.45 }}></i>;
+      case BubbleType.MAGNET: return <i className="fas fa-magnet text-purple-100" style={{ fontSize: data.size * 0.5 }}></i>;
+      case BubbleType.FREEZE: return <i className="fas fa-snowflake text-cyan-50" style={{ fontSize: data.size * 0.45 }}></i>;
       default: return null;
     }
   };
 
   return (
     <div
-      className="absolute select-none cursor-pointer"
+      className="absolute select-none pointer-events-auto cursor-pointer"
       style={{
         left: 0,
         top: 0,
         width: `${data.size}px`,
         height: `${data.size}px`,
         transform: `translate3d(${data.x}px, ${data.y}px, 0) rotate(${data.rotation}deg)`,
+        zIndex: isPopping ? 100 : 1,
       }}
+      onClick={handlePop}
+      onTouchStart={handlePop}
     >
-      {/* Visual Radius Indicators */}
+      {/* Magnetic Field Effect */}
       {!isPopping && data.type === BubbleType.MAGNET && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border border-purple-400/10 bg-purple-500/5 blur-xl pointer-events-none animate-pulse"></div>
-      )}
-      {!isPopping && data.type === BubbleType.STICKY && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] rounded-full border border-emerald-400/10 bg-emerald-500/5 blur-md pointer-events-none"></div>
-      )}
-
-      {/* Combo Aura */}
-      {!isPopping && !isGlobalFrozen && combo > 3 && (
-        <div 
-          className="absolute inset-[-10px] rounded-full animate-pulse border-4 border-emerald-400/20 blur-sm"
-          style={{ opacity: Math.min(combo * 0.1, 0.8) }}
-        ></div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[450px] rounded-full border border-purple-500/20 bg-purple-600/5 blur-2xl pointer-events-none animate-pulse"></div>
       )}
 
       {/* Explosion Particles for Bomb */}
       {isPopping && data.type === BubbleType.BOMB && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {[...Array(12)].map((_, i) => (
-            <div 
-              key={i}
-              className="absolute w-2 h-2 bg-red-400 rounded-full"
-              style={{
-                '--tw-translate-x': `${Math.cos(i * 30 * Math.PI / 180) * 120}px`,
-                '--tw-translate-y': `${Math.sin(i * 30 * Math.PI / 180) * 120}px`,
-                animation: 'particle-out 0.4s ease-out forwards'
-              } as any}
-            />
-          ))}
-          <div className="absolute inset-0 rounded-full border-4 border-red-500/50 bomb-explode"></div>
+          <div className="absolute inset-[-100px] rounded-full border-[10px] border-red-500/40 bomb-explode"></div>
         </div>
       )}
 
       <div
-        onClick={handlePop}
-        onTouchStart={handlePop}
         className={`w-full h-full rounded-full border-2 shadow-inner flex items-center justify-center bubble-inner transition-all duration-300 hover:scale-110 ${getTypeStyles()} ${isPopping ? 'popping' : ''}`}
-        style={{
-          animationPlayState: (isPaused || isGlobalFrozen) ? 'paused' : 'running',
-        }}
+        style={{ animationPlayState: (isPaused || isGlobalFrozen) ? 'paused' : 'running' }}
       >
         {!isPopping && (
           <>
             {getIcon()}
-            <div className={`absolute top-[15%] right-[20%] w-1/4 h-1/4 ${isGlobalFrozen ? 'bg-white/80' : 'bg-white/40'} rounded-full blur-[1px] sparkle-effect`}></div>
-            <div className="absolute bottom-[20%] left-[25%] w-1/5 h-1/5 bg-white/10 rounded-full blur-[1px]"></div>
-            {isGlobalFrozen && <div className="absolute inset-0 bg-cyan-100/10 rounded-full backdrop-blur-[0.5px]"></div>}
+            <div className={`absolute top-[15%] right-[20%] w-1/4 h-1/4 ${isGlobalFrozen ? 'bg-white/90' : 'bg-white/60'} rounded-full blur-[1px] sparkle-effect`}></div>
+            <div className="absolute bottom-[20%] left-[25%] w-1/5 h-1/5 bg-white/20 rounded-full blur-[1px]"></div>
           </>
         )}
       </div>

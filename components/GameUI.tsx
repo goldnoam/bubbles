@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { GameState, Level, Language, FontSize, GameSpeed } from '../types';
 import { I18N } from '../constants';
@@ -54,7 +55,7 @@ const GameUI: React.FC<GameUIProps> = ({
     }
   }, [score, displayScore]);
 
-  // Accessibility: Native Browser Text-to-Speech
+  // Accessibility: Native Browser Text-to-Speech for UI interactions
   const speak = (text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     const utterance = new SpeechSynthesisUtterance(text);
@@ -72,8 +73,8 @@ const GameUI: React.FC<GameUIProps> = ({
   };
 
   const flavors = [t.cola, t.lime, t.orange, t.grape, t.soda];
-  const filteredFlavors = searchValue ? flavors.filter(f => f.toLowerCase().includes(searchValue.toLowerCase())) : [];
 
+  // Export search/stats functionality
   const handleExport = () => {
     const data = `
 Fizzy Pop Master - Game Stats
@@ -94,6 +95,7 @@ Timestamp: ${new Date().toLocaleString()}
     speak("Stats Exported");
   };
 
+  // Drag and drop text support for search box
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const data = e.dataTransfer.getData("text");
@@ -131,6 +133,7 @@ Timestamp: ${new Date().toLocaleString()}
             type="range" min="0" max="1" step="0.01" value={volumes.master} 
             onChange={(e) => handleVolumeChange('master', parseFloat(e.target.value))}
             className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            aria-label={t.master}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -142,6 +145,7 @@ Timestamp: ${new Date().toLocaleString()}
             type="range" min="0" max="1" step="0.01" value={volumes.music} 
             onChange={(e) => handleVolumeChange('music', parseFloat(e.target.value))}
             className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            aria-label={t.music}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -153,6 +157,7 @@ Timestamp: ${new Date().toLocaleString()}
             type="range" min="0" max="1" step="0.01" value={volumes.sfx} 
             onChange={(e) => handleVolumeChange('sfx', parseFloat(e.target.value))}
             className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+            aria-label={t.sfx}
           />
         </div>
       </div>
@@ -248,9 +253,9 @@ Timestamp: ${new Date().toLocaleString()}
                   {(['small', 'medium', 'large'] as FontSize[]).map(s => (
                     <button 
                         key={s} 
-                        onClick={() => { onFontSizeChange(s); speak(`Size ${s}`); }} 
+                        onClick={() => { onFontSizeChange(s); speak(`Font size ${s}`); }} 
                         className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${fontSize === s ? 'bg-emerald-500 text-white shadow-md' : 'hover:bg-white/10 text-white/70'}`} 
-                        aria-label={`Font size ${s}`}
+                        aria-label={`Set font size to ${s}`}
                     >
                       {s === 'small' ? 'A' : s === 'medium' ? 'A+' : 'A++'}
                     </button>
@@ -269,6 +274,7 @@ Timestamp: ${new Date().toLocaleString()}
                     onClick={() => { setShowSettings(!showSettings); speak(t.settings); }} 
                     className={`w-10 h-10 flex items-center justify-center rounded-lg border border-white/20 hover:bg-white/30 transition-all ${showSettings ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white'}`} 
                     aria-label={t.settings}
+                    aria-expanded={showSettings}
                 >
                   <i className="fas fa-cog text-lg"></i>
                 </button>
@@ -287,23 +293,31 @@ Timestamp: ${new Date().toLocaleString()}
                       type="range" min="0.5" max="2.0" step="0.1" value={gameSpeed} 
                       onChange={(e) => onGameSpeedChange(parseFloat(e.target.value))}
                       className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      aria-label={t.gameSpeed}
                     />
                   </div>
 
+                  {/* Autocomplete and Drag-and-Drop Search Box */}
                   <div className="relative mt-6 text-left-custom" onDrop={handleDrop} onDragOver={handleDragOver}>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
                         <input 
                           type="text" 
+                          list="flavor-list"
                           placeholder={t.searchPlaceholder}
                           className="w-full bg-white/20 dark:bg-white/10 border border-white/20 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 text-xs text-white transition-colors"
                           value={searchValue}
                           onChange={(e) => setSearchValue(e.target.value)}
+                          aria-label={t.searchPlaceholder}
                         />
+                        <datalist id="flavor-list">
+                          {flavors.map(f => <option key={f} value={f} />)}
+                        </datalist>
                         {searchValue && (
                           <button 
                               onClick={() => { setSearchValue(""); speak(t.clear); }}
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                              aria-label={t.clear}
                           >
                             <i className="fas fa-times-circle"></i>
                           </button>
@@ -313,6 +327,7 @@ Timestamp: ${new Date().toLocaleString()}
                           onClick={handleExport} 
                           className="w-10 h-10 bg-white/20 dark:bg-white/10 rounded-xl flex items-center justify-center hover:bg-blue-500/20 border border-white/10 transition-colors" 
                           title={t.export}
+                          aria-label={t.export}
                       >
                         <i className="fas fa-file-export text-xs"></i>
                       </button>
@@ -334,6 +349,7 @@ Timestamp: ${new Date().toLocaleString()}
                 <button 
                   onClick={() => setShowSettings(!showSettings)} 
                   className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all ${showSettings ? 'bg-white/20 border-white/40' : 'bg-white/5 border-white/10'}`}
+                  aria-expanded={showSettings}
                 >
                   <i className="fas fa-sliders-h"></i>
                   {t.settings}
