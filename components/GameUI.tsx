@@ -67,12 +67,22 @@ const GameUI: React.FC<GameUIProps> = ({
   const filteredFlavors = searchValue ? flavors.filter(f => f.toLowerCase().includes(searchValue.toLowerCase())) : [];
 
   const handleExport = () => {
-    const data = `Score: ${score}, High Score: ${highScore}, Level: ${level.id}, Speed: ${gameSpeed}`;
+    const data = `
+Fizzy Pop Master - Game Stats
+----------------------------
+Score: ${score}
+High Score: ${highScore}
+Level: ${level.id} (${t[level.nameKey as keyof typeof t]})
+Speed: ${gameSpeed}x
+Language: ${lang}
+Last Search: ${searchValue || 'None'}
+Timestamp: ${new Date().toLocaleString()}
+`;
     const blob = new Blob([data], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'fizzy_pop_stats.txt';
+    link.download = `fizzy_pop_stats_${Date.now()}.txt`;
     link.click();
     speak("Stats Exported");
   };
@@ -80,7 +90,10 @@ const GameUI: React.FC<GameUIProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const data = e.dataTransfer.getData("text");
-    if (data) setSearchValue(data);
+    if (data) {
+        setSearchValue(data);
+        speak(`Imported text: ${data}`);
+    }
   };
 
   return (
@@ -154,6 +167,7 @@ const GameUI: React.FC<GameUIProps> = ({
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   aria-label="Search Flavors"
+                  aria-autocomplete="list"
                 />
                 {searchValue && (
                   <button onClick={() => { setSearchValue(""); speak("Cleared"); }} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-red-500/20 transition-colors" aria-label="Clear Search">
@@ -165,9 +179,9 @@ const GameUI: React.FC<GameUIProps> = ({
                 </button>
               </div>
               {filteredFlavors.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-black/80 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[100]">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-black/80 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden shadow-2xl z-[100]" role="listbox">
                   {filteredFlavors.map(f => (
-                    <div key={f} className="px-4 py-2 hover:bg-white/10 cursor-pointer text-sm" onClick={() => { setSearchValue(f); speak(f); }}>{f}</div>
+                    <div key={f} className="px-4 py-2 hover:bg-white/10 cursor-pointer text-sm" onClick={() => { setSearchValue(f); speak(f); }} role="option">{f}</div>
                   ))}
                 </div>
               )}
